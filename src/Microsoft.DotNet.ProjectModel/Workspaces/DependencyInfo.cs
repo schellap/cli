@@ -6,7 +6,7 @@ namespace Microsoft.Extensions.ProjectModel.Workspaces
     {
         public DependencyInfo(IList<DiagnosticMessage> diagnostics,
                               IList<DependencyDescription> dependencies,
-                              IList<ProjectReference> projectReferences,
+                              IList<ProjectReferenceInfo> projectReferences,
                               IList<string> runtimeAssemblyReferences,
                               IList<string> exportedSourceFiles)
         {
@@ -23,7 +23,7 @@ namespace Microsoft.Extensions.ProjectModel.Workspaces
 
         public IList<string> FileReferences { get; }
 
-        public IList<ProjectReference> ProjectReferences { get; }
+        public IList<ProjectReferenceInfo> ProjectReferences { get; }
 
         public IList<string> ExportedSourcesFiles { get; }
 

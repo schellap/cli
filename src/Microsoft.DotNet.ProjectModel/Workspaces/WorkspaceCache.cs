@@ -1,5 +1,4 @@
 ﻿using System;
-using System.IO;
 using System.Threading.Tasks;
 using Microsoft.DotNet.ProjectModel.Caching;
 using NuGet.Frameworks;
@@ -21,19 +20,19 @@ namespace Microsoft.Extensions.ProjectModel.Workspaces
 
         public INamedCacheDependencyProvider NamedCacheDependencyProvider { get; }
 
-        public Task<Project> GetProjectAsync(ProjectId id)
+        public Task<Project> GetProjectAsync(string projectPath)
         {
             return Task.Run(() =>
             {
-                return (Project)Cache.Get(Tuple.Create(typeof(Project), id), ctx =>
+                return (Project)Cache.Get(Tuple.Create(typeof(Project), projectPath), ctx =>
                 {
                     //_logger.LogVerbose($"Reading project {projectHandle} => {projectPath}");
 
-                    TriggerDependency<Project>(id);
-                    MonitorDependency(ctx, new FileWriteTimeCacheDependency(Path.Combine(id.FullPath, Project.FileName)));
+                    TriggerDependency<Project>(projectPath);
+                    MonitorDependency(ctx, new FileWriteTimeCacheDependency(projectPath));
 
                     Project project;
-                    if (!ProjectReader.TryGetProject(id.FullPath, out project))
+                    if (!ProjectReader.TryGetProject(projectPath, out project))
                     {
                         return null;
                     }
@@ -45,9 +44,9 @@ namespace Microsoft.Extensions.ProjectModel.Workspaces
             });
         }
 
-        public async Task<ProjectContext> GetProjectContext(ProjectId id, NuGetFramework framework)
+        public async Task<ProjectContext> GetProjectContext(string projectPath, NuGetFramework framework)
         {
-            var project = await GetProjectAsync(id);
+            var project = await GetProjectAsync(projectPath);
             if (project == null)
             {
                 return null;
@@ -55,11 +54,11 @@ namespace Microsoft.Extensions.ProjectModel.Workspaces
 
             var projectContext = await Task.Run(() =>
             {
-                return Cache.Get(Tuple.Create(typeof(ProjectContext), id, framework), ctx =>
+                return Cache.Get(Tuple.Create(typeof(ProjectContext), projectPath, framework), ctx =>
                 {
                     //_logger.LogVerbose($"Reading project context {projectHandle} => {project.ProjectDirectory}");
-                    TriggerDependency<ProjectContext>(id, framework);
-                    MonitorDependency<Project>(ctx, id);
+                    TriggerDependency<ProjectContext>(projectPath, framework);
+                    MonitorDependency<Project>(ctx, projectPath);
 
                     var builder = new ProjectContextBuilder()
                         .WithProject(project)
@@ -72,40 +71,40 @@ namespace Microsoft.Extensions.ProjectModel.Workspaces
             return projectContext;
         }
 
-        public async Task<DependencyInfo> GetDependencyInfo(ProjectId id, NuGetFramework framework, string configuration)
+        public async Task<DependencyInfo> GetDependencyInfo(string projectPath, NuGetFramework framework, string configuration)
         {
-            var projectContext = await GetProjectContext(id, framework);
+            var projectContext = await GetProjectContext(projectPath, framework);
             if (projectContext == null)
             {
                 return null;
             }
 
-            var cacheKey = Tuple.Create(typeof(DependencyInfo), id, framework, configuration);
+            var cacheKey = Tuple.Create(typeof(DependencyInfo), projectPath, framework, configuration);
             return Cache.Get(cacheKey, ctx =>
             {
                 //_logger.LogVerbose($"Resolving dependencies for project {projectHandle}/{framework}");
 
-                TriggerDependency<DependencyInfo>(id, framework, configuration);
-                MonitorDependency<ProjectContext>(ctx, id, framework);
+                TriggerDependency<DependencyInfo>(projectPath, framework, configuration);
+                MonitorDependency<ProjectContext>(ctx, projectPath, framework);
 
                 var resolver = new DependencyInfoResolver(projectContext, configuration);
                 return resolver.Resolve();
             }) as DependencyInfo;
         }
 
-        private void TriggerDependency<T>(ProjectId id)
+        private void TriggerDependency<T>(string projectPath)
         {
-            NamedCacheDependencyProvider.Trigger(GetCacheDependencyName<T>(id));
+            NamedCacheDependencyProvider.Trigger(GetCacheDependencyName<T>(projectPath));
         }
 
-        private void TriggerDependency<T>(ProjectId id, NuGetFramework framework)
+        private void TriggerDependency<T>(string projectPath, NuGetFramework framework)
         {
-            NamedCacheDependencyProvider.Trigger(GetCacheDependencyName<T>(id, framework));
+            NamedCacheDependencyProvider.Trigger(GetCacheDependencyName<T>(projectPath, framework));
         }
 
-        private void TriggerDependency<T>(ProjectId id, NuGetFramework framework, string configuration)
+        private void TriggerDependency<T>(string projectPath, NuGetFramework framework, string configuration)
         {
-            NamedCacheDependencyProvider.Trigger(GetCacheDependencyName<T>(id, framework, configuration));
+            NamedCacheDependencyProvider.Trigger(GetCacheDependencyName<T>(projectPath, framework, configuration));
         }
 
         private void MonitorDependency(CacheContext ctx, ICacheDependency dependency)
@@ -113,31 +112,31 @@ namespace Microsoft.Extensions.ProjectModel.Workspaces
             ctx.Monitor(dependency);
         }
 
-        private void MonitorDependency<T>(CacheContext ctx, ProjectId id)
+        private void MonitorDependency<T>(CacheContext ctx, string projectPath)
         {
             MonitorDependency(ctx,
-                NamedCacheDependencyProvider.GetNamedDependency(GetCacheDependencyName<T>(id)));
+                NamedCacheDependencyProvider.GetNamedDependency(GetCacheDependencyName<T>(projectPath)));
         }
 
-        private void MonitorDependency<T>(CacheContext ctx, ProjectId id, NuGetFramework framework)
+        private void MonitorDependency<T>(CacheContext ctx, string projectPath, NuGetFramework framework)
         {
             MonitorDependency(ctx,
-                NamedCacheDependencyProvider.GetNamedDependency(GetCacheDependencyName<T>(id, framework)));
+                NamedCacheDependencyProvider.GetNamedDependency(GetCacheDependencyName<T>(projectPath, framework)));
         }
 
-        private string GetCacheDependencyName<T>(ProjectId id)
+        private string GetCacheDependencyName<T>(string projectPath)
         {
-            return $"DependencyName_of_{nameof(ProjectId)}_{id.FullPath}_for_{typeof(T).Name}";
+            return $"DependencyName_of_ProjectPath_{projectPath}_for_{typeof(T).Name}";
         }
 
-        private string GetCacheDependencyName<T>(ProjectId id, NuGetFramework framework)
+        private string GetCacheDependencyName<T>(string projectPath, NuGetFramework framework)
         {
-            return $"DependencyName_of_{nameof(ProjectId)}_{id.FullPath}_for_{typeof(T).Name}_{framework.GetShortFolderName()}";
+            return $"DependencyName_of_ProjectPath_{projectPath}_for_{typeof(T).Name}_{framework.GetShortFolderName()}";
         }
 
-        private string GetCacheDependencyName<T>(ProjectId id, NuGetFramework framework, string configuration)
+        private string GetCacheDependencyName<T>(string projectPath, NuGetFramework framework, string configuration)
         {
-            return $"DependencyName_of_{nameof(ProjectId)}_{id.FullPath}_for_{typeof(T).Name}_{framework.GetShortFolderName()}_{configuration}";
+            return $"DependencyName_of_ProjectPath_{projectPath}_for_{typeof(T).Name}_{framework.GetShortFolderName()}_{configuration}";
         }
     }
 }

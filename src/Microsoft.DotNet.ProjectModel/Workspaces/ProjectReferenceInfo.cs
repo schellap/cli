@@ -2,7 +2,7 @@
 
 namespace Microsoft.Extensions.ProjectModel.Workspaces
 {
-    public class ProjectReference
+    public class ProjectReferenceInfo
     {
         public NuGetFramework Framework { get; set; }
         public string Name { get; set; }

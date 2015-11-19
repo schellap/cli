@@ -31,7 +31,7 @@ namespace Microsoft.Extensions.ProjectModel.Workspaces
             var diagnostics = _libraryManager.GetAllDiagnostics();
             var dependencies = new List<DependencyDescription>();
             var runtimeAssemblyReferences = new List<string>();
-            var projectReferences = new List<ProjectReference>();
+            var projectReferences = new List<ProjectReferenceInfo>();
             var exportedSourceFiles = new List<string>();
 
             var diagnosticSources = diagnostics.ToLookup(diagnostic => diagnostic.Source);
@@ -79,7 +79,7 @@ namespace Microsoft.Extensions.ProjectModel.Workspaces
                                          targetFrameworkInformation.AssemblyPath));
                     }
 
-                    projectReferences.Add(new ProjectReference
+                    projectReferences.Add(new ProjectReferenceInfo
                     {
                         Name = library.Identity.Name,
                         Framework = library.Framework,
@@ -94,7 +94,7 @@ namespace Microsoft.Extensions.ProjectModel.Workspaces
 
             foreach (var export in exporter.GetAllExports())
             {
-                runtimeAssemblyReferences.AddRange(export.RuntimeAssemblies.Select(asset => asset.ResolvedPath));
+                runtimeAssemblyReferences.AddRange(export.CompilationAssemblies.Select(asset => asset.ResolvedPath));
                 exportedSourceFiles.AddRange(export.SourceReferences);
             }
 

@@ -7,15 +7,15 @@ using NuGet.Frameworks;
 
 namespace Microsoft.Extensions.ProjectModel.Workspaces
 {
-    public class Workspace
+    public class ProjectJsonWorkspace
     {
-        private readonly Dictionary<string, ProjectId> _projectIds =
-            new Dictionary<string, ProjectId>();
+        private readonly HashSet<string> _projectPaths
+                   = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        private readonly WorkspaceCache _cache =
-            new WorkspaceCache();
+        private readonly WorkspaceCache _cache
+                   = new WorkspaceCache();
 
-        private Workspace(GlobalSettings globalSettings)
+        private ProjectJsonWorkspace(GlobalSettings globalSettings)
         {
             // Collect all projects
             foreach (var searchPath in globalSettings.ProjectSearchPaths)
@@ -25,34 +25,25 @@ namespace Microsoft.Extensions.ProjectModel.Workspaces
                 {
                     continue;
                 }
+                else
+                {
+                    actualPath = Path.GetFullPath(actualPath);
+                }
 
                 foreach (var dir in Directory.GetDirectories(actualPath))
                 {
-                    var id = ProjectId.CreateFromPath(dir, _cache);
-                    if (id != null)
+                    var projectJson = Path.Combine(dir, Project.FileName);
+                    if (File.Exists(projectJson))
                     {
-                        _projectIds[id.Name] = id;
+                        _projectPaths.Add(projectJson);
                     }
                 }
             }
         }
 
-        public IEnumerable<ProjectId> GetProjects()
+        public ISet<string> GetProjectPaths()
         {
-            return _projectIds.Values;
-        }
-
-        public ProjectId GetProject(string projectName)
-        {
-            ProjectId id;
-            if (_projectIds.TryGetValue(projectName, out id))
-            {
-                return id;
-            }
-            else
-            {
-                return null;
-            }
+            return _projectPaths;
         }
 
         /// <summary>
@@ -63,7 +54,7 @@ namespace Microsoft.Extensions.ProjectModel.Workspaces
         /// </summary>
         /// <param name="path">The path to the workspace.</param>
         /// <returns>Returns workspace instance. If the global.json is missing returns null.</returns>
-        public static Workspace Create(string path)
+        public static ProjectJsonWorkspace Create(string path)
         {
             if (Directory.Exists(path))
             {
@@ -82,25 +73,24 @@ namespace Microsoft.Extensions.ProjectModel.Workspaces
         /// </summary>
         /// <param name="filepath">The path to the global.json.</param>
         /// <returns>Returns workspace instance. If a global.json is missing returns null.</returns>
-        public static Workspace CreateFromGlobalJson(string filepath)
+        public static ProjectJsonWorkspace CreateFromGlobalJson(string filepath)
         {
             if (File.Exists(filepath) &&
                 string.Equals(Path.GetFileName(filepath), GlobalSettings.FileName, StringComparison.OrdinalIgnoreCase))
             {
                 GlobalSettings globalSettings;
-
                 if (GlobalSettings.TryGetGlobalSettings(filepath, out globalSettings))
                 {
-                    return new Workspace(globalSettings);
+                    return new ProjectJsonWorkspace(globalSettings);
                 }
             }
 
             return null;
         }
 
-        public async Task<ProjectInformation> GetProjectInformationAsync(ProjectId id)
+        public async Task<ProjectInformation> GetProjectInformationAsync(string projectPath)
         {
-            var project = await _cache.GetProjectAsync(id);
+            var project = await _cache.GetProjectAsync(projectPath);
             if (project == null)
             {
                 return null;
@@ -111,26 +101,26 @@ namespace Microsoft.Extensions.ProjectModel.Workspaces
             }
         }
 
-        public async Task<IEnumerable<ProjectReference>> GetProjectReferencesAsync(
-            ProjectId id,
+        public async Task<IEnumerable<ProjectReferenceInfo>> GetProjectReferencesAsync(
+            string projectPath,
             NuGetFramework framework,
             string configuration)
         {
-            var dependencyInfo = await _cache.GetDependencyInfo(id, framework, configuration);
+            var dependencyInfo = await _cache.GetDependencyInfo(projectPath, framework, configuration);
             if (dependencyInfo == null)
             {
-                return Enumerable.Empty<ProjectReference>();
+                return Enumerable.Empty<ProjectReferenceInfo>();
             }
 
             return dependencyInfo.ProjectReferences;
         }
 
         public async Task<IEnumerable<DependencyDescription>> GetDependenciesAsync(
-            ProjectId id,
+            string projectPath,
             NuGetFramework framework,
             string configuration)
         {
-            var dependencyInfo = await _cache.GetDependencyInfo(id, framework, configuration);
+            var dependencyInfo = await _cache.GetDependencyInfo(projectPath, framework, configuration);
             if (dependencyInfo == null)
             {
                 return Enumerable.Empty<DependencyDescription>();
@@ -140,11 +130,11 @@ namespace Microsoft.Extensions.ProjectModel.Workspaces
         }
 
         public async Task<IEnumerable<DiagnosticMessage>> GetDependencyDiagnosticsAsync(
-            ProjectId id, 
+            string projectPath,
             NuGetFramework framework,
             string configuration)
         {
-            var dependencyInfo = await _cache.GetDependencyInfo(id, framework, configuration);
+            var dependencyInfo = await _cache.GetDependencyInfo(projectPath, framework, configuration);
             if (dependencyInfo == null)
             {
                 return null;
@@ -154,11 +144,11 @@ namespace Microsoft.Extensions.ProjectModel.Workspaces
         }
 
         public async Task<IEnumerable<string>> GetFileReferencesAsync(
-            ProjectId id,
+            string projectPath,
             NuGetFramework framework,
             string configuration)
         {
-            var dependencyInfo = await _cache.GetDependencyInfo(id, framework, configuration);
+            var dependencyInfo = await _cache.GetDependencyInfo(projectPath, framework, configuration);
             if (dependencyInfo == null)
             {
                 return null;
@@ -167,24 +157,36 @@ namespace Microsoft.Extensions.ProjectModel.Workspaces
             return dependencyInfo.FileReferences;
         }
 
-        public Task<IDictionary<string, byte[]>> GetRawReferencesAsync(ProjectId project, NuGetFramework framework, string configuration)
+        public async Task<IEnumerable<string>> GetSourcesAsync(
+            string projectPath,
+            NuGetFramework framework,
+            string configuration)
         {
-            throw new NotImplementedException();
-        }
-
-        public async Task<IEnumerable<string>> GetSourcesAsync(ProjectId id, NuGetFramework framework, string configuration)
-        {
-            var dependencyInfo = await _cache.GetDependencyInfo(id, framework, configuration);
+            var dependencyInfo = await _cache.GetDependencyInfo(projectPath, framework, configuration);
             if (dependencyInfo == null)
             {
                 return null;
             }
 
-            var project = await _cache.GetProjectAsync(id);
+            var project = await _cache.GetProjectAsync(projectPath);
             var sources = new List<string>(project.Files.SourceFiles);
             sources.AddRange(dependencyInfo.ExportedSourcesFiles);
 
             return sources;
+        }
+
+        public async Task<CommonCompilerOptions> GetCompilerOptionAsync(
+            string projectPath,
+            NuGetFramework framework,
+            string configuration)
+        {
+            var project = await _cache.GetProjectAsync(projectPath);
+            if (project == null)
+            {
+                return null;
+            }
+
+            return project.GetCompilerOptions(framework, configuration);
         }
     }
 }
