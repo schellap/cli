@@ -10,6 +10,8 @@ using Microsoft.DotNet.Tools.Common;
 
 namespace Microsoft.DotNet.Tools.Compiler.Native
 {
+    using FlavorLibMap=System.Collections.Generic.Dictionary<BuildConfiguration, string[]>;
+
     public class WindowsLinkStep : IPlatformNativeStep
     {
         private readonly string LinkerName = "link.exe";
@@ -24,10 +26,22 @@ namespace Microsoft.DotNet.Tools.Compiler.Native
             { BuildConfiguration.release, "/NOLOGO /ERRORREPORT:PROMPT /INCREMENTAL:NO /OPT:REF /OPT:ICF /LTCG:incremental /MANIFEST /MANIFESTUAC:\"level='asInvoker' uiAccess='false'\" /manifest:embed /Debug /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT" }
         };
 
-        private static readonly Dictionary<NativeIntermediateMode, string[]> ModeLibMap = new Dictionary<NativeIntermediateMode, string[]>
+        private static readonly Dictionary<NativeIntermediateMode, FlavorLibMap> ModeFlavorLibMap = new Dictionary<NativeIntermediateMode, FlavorLibMap>
         {
-            { NativeIntermediateMode.cpp, new string[] { "PortableRuntime.lib", "bootstrappercpp.lib" } },
-            { NativeIntermediateMode.ryujit, new string[] { "Runtime.lib", "bootstrapper.lib" } }
+            {  
+                NativeIntermediateMode.cpp, new FlavorLibMap
+                {
+                       { BuildConfiguration.debug, new string[] { "PortableRuntimeD.lib", "bootstrappercppD.lib" } },
+                       { BuildConfiguration.release, new string[] { "PortableRuntime.lib", "bootstrappercpp.lib" } }
+                }
+            },
+            {
+                NativeIntermediateMode.ryujit, new FlavorLibMap
+                {
+                       { BuildConfiguration.debug, new string[] { "RuntimeD.lib", "bootstrapperD.lib" } },
+                       { BuildConfiguration.release, new string[] { "Runtime.lib", "bootstrapper.lib" } }
+                }
+            }
         };
 
         private static readonly string[] ConstantLinkLibs = new string[]
@@ -99,7 +113,7 @@ namespace Microsoft.DotNet.Tools.Compiler.Native
             argsList.Add(string.Join(" ", ConstantLinkLibs));
 
             // SDK Libs
-            var SDKLibs = ModeLibMap[config.NativeMode];
+            var SDKLibs = ModeFlavorLibMap[config.NativeMode][config.BuildType];
             foreach (var lib in SDKLibs)
             {
                 var sdkLibPath = Path.Combine(config.IlcPath, lib);

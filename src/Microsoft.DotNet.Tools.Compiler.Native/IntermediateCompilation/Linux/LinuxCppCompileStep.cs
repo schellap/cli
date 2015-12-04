@@ -17,13 +17,16 @@ namespace Microsoft.DotNet.Tools.Compiler.Native
 
         // TODO: debug/release support
         private readonly string cLibsFlags = "-lm -ldl";
-        private readonly string cflags = "-g -lstdc++ -lrt -Wno-invalid-offsetof -pthread";
-
-        private readonly string[] libs = new string[]
+        private readonly Dictionary<BuildConfiguration, string> cflags = new Dictionary<BuildConfiguration, string>
         {
-            "libbootstrappercpp.a",
-            "libPortableRuntime.a",
-            "libSystem.Private.CoreLib.Native.a"
+            { BuildConfiguration.debug, "-g -lstdc++ -lrt -Wno-invalid-offsetof -pthread" },
+            { BuildConfiguration.release, "-lstdc++ -lrt -Wno-invalid-offsetof -pthread" },
+        };
+
+        private readonly Dictionary<BuildConfiguration, string[]> libs = new Dictionary<BuildConfiguration, string[]>
+        {
+            { BuildConfiguration.debug,   new string[] { "libbootstrappercppD.a", "libPortableRuntimeD.a", "libSystem.Private.CoreLib.NativeD.a" } },
+            { BuildConfiguration.release, new string[] { "libbootstrappercpp.a", "libPortableRuntime.a", "libSystem.Private.CoreLib.Native.a" } }
         };
 
         private readonly string[] appdeplibs = new string[]
@@ -63,7 +66,7 @@ namespace Microsoft.DotNet.Tools.Compiler.Native
             var argsList = new List<string>();
             
             // Flags
-            argsList.Add(cflags);
+            argsList.Add(cflags[config.BuildType]);
 
             // Add Includes
             argsList.Add("-I");
@@ -80,7 +83,7 @@ namespace Microsoft.DotNet.Tools.Compiler.Native
             argsList.Add(Path.Combine(config.AppDepSDKPath, "CPPSdk/ubuntu.14.04/lxstubs.cpp"));
 
             // Libs
-            foreach (var lib in libs)
+            foreach (var lib in libs[config.BuildType])
             {
                 var libPath = Path.Combine(config.IlcPath, lib);
                 argsList.Add(libPath);

@@ -15,16 +15,17 @@ namespace Microsoft.DotNet.Tools.Compiler.Native
         private readonly string CompilerName = "clang-3.5";
         private readonly string InputExtension = ".obj";
 
-        private readonly string CompilerOutputExtension = "";
-
         // TODO: debug/release support
-        private readonly string cflags = "-lstdc++ -lpthread -ldl -lm -lrt";
-
-        private readonly string[] libs = new string[]
+        private readonly Dictionary<BuildConfiguration, string> cflags = new Dictionary<BuildConfiguration, string>
         {
-            "libbootstrapper.a",
-            "libRuntime.a",
-            "libSystem.Private.CoreLib.Native.a"
+            { BuildConfiguration.debug, "-g -lstdc++ -lpthread -ldl -lm -lrt" },
+            { BuildConfiguration.release, "-lstdc++ -lpthread -ldl -lm -lrt" },
+        };
+
+        private readonly Dictionary<BuildConfiguration, string[]> libs = new Dictionary<BuildConfiguration, string[]>
+        {
+            { BuildConfiguration.debug,   new string[] { "libbootstrapperD.a", "libRuntimeD.a", "libSystem.Private.CoreLib.NativeD.a" } },
+            { BuildConfiguration.release, new string[] { "libbootstrapper.a", "libRuntime.a", "libSystem.Private.CoreLib.Native.a" } }
         };
 
         private readonly string[] appdeplibs = new string[]
@@ -64,14 +65,14 @@ namespace Microsoft.DotNet.Tools.Compiler.Native
             var argsList = new List<string>();
 
             // Flags
-            argsList.Add(cflags);
+            argsList.Add(cflags[config.BuildType]);
             
             // Input File
             var inLibFile = DetermineInFile(config);
             argsList.Add(inLibFile);
 
             // Libs
-            foreach (var lib in libs)
+            foreach (var lib in libs[config.BuildType])
             {
                 var libPath = Path.Combine(config.IlcPath, lib);
                 argsList.Add(libPath);
@@ -102,18 +103,6 @@ namespace Microsoft.DotNet.Tools.Compiler.Native
                 .ForwardStdOut()
                 .Execute();
 
-            // Needs System.Native.so in output
-            var sharedLibPath = Path.Combine(config.IlcPath, "System.Native.so");
-            var outputSharedLibPath = Path.Combine(config.OutputDirectory, "System.Native.so");
-            try
-            {
-                File.Copy(sharedLibPath, outputSharedLibPath);
-            }
-            catch(Exception e)
-            {
-                Reporter.Error.WriteLine("Unable to copy System.Native.so to output");
-            }
-
             return result.ExitCode;
         }
 
@@ -134,7 +123,7 @@ namespace Microsoft.DotNet.Tools.Compiler.Native
 
             var filename = Path.GetFileNameWithoutExtension(config.InputManagedAssemblyPath);
 
-            var outfile = Path.Combine(intermediateDirectory, filename + CompilerOutputExtension);
+            var outfile = Path.Combine(intermediateDirectory, filename);
 
             return outfile;
         }
