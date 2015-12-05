@@ -18,8 +18,8 @@ namespace Microsoft.DotNet.Tools.Compiler.Native
         // TODO: debug/release support
         private readonly Dictionary<BuildConfiguration, string> cflags = new Dictionary<BuildConfiguration, string>
         {
-            { BuildConfiguration.debug, "-g -lstdc++ -lrt -Wno-invalid-offsetof -pthread" },
-            { BuildConfiguration.release, "-lstdc++ -lrt -Wno-invalid-offsetof -pthread" }
+            { BuildConfiguration.debug, "-g -lstdc++ -Wno-invalid-offsetof -pthread" },
+            { BuildConfiguration.release, "-lstdc++ -Wno-invalid-offsetof -pthread" }
         };
        
         // Link to iconv APIs
