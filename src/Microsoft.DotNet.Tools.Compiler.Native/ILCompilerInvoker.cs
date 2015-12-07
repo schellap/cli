@@ -20,6 +20,12 @@ namespace Microsoft.DotNet.Tools.Compiler.Native
             { NativeIntermediateMode.ryujit, ".obj" }
         };
 
+        private static readonly Dictionary<BuildConfiguration, string> CoreLibMap = new Dictionary<BuildConfiguration, string>
+        {
+            { BuildConfiguration.debug, "System.Private.CoreLibD.dll" },
+            { BuildConfiguration.release, "System.Private.CoreLib.dll" }
+        };
+
         private string ArgStr { get; set; }
         private NativeCompileSettings config;
         
@@ -46,7 +52,7 @@ namespace Microsoft.DotNet.Tools.Compiler.Native
             argsList.Add($"\"{inputFilePath}\"");
             
             // System.Private.CoreLib Reference
-            var coreLibPath = Path.Combine(config.IlcPath, "System.Private.CoreLib.dll");
+            var coreLibPath = Path.Combine(config.IlcPath, CoreLibMap[config.BuildType]);
             argsList.Add($"-r \"{coreLibPath}\"");
             
             // Dependency References
