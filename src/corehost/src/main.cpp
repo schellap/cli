@@ -75,7 +75,7 @@ int run(arguments_t args, pal::string_t app_base, tpafile tpa)
         return 1;
     }
 
-    std::map<std::string, char*> properties;
+    std::unordered_map<std::string, const char*> properties;
     properties.emplace("TRUSTED_PLATFORM_ASSEMBLIES", tpa_cstr.c_str());
     properties.emplace("APP_PATHS", app_base_cstr.c_str());
     properties.emplace("APP_NI_PATHS", app_base_cstr.c_str());
@@ -83,13 +83,13 @@ int run(arguments_t args, pal::string_t app_base, tpafile tpa)
     properties.emplace("AppDomainCompatSwitch", "UseLatestBehaviorWhenTFMNotSpecified");
 
     int count = properties.size() + args.own_properties.size();
-    std::vector<char*> property_keys(count);
-    std::vector<char*> property_values(count);
+    std::vector<const char*> property_keys(count);
+    std::vector<const char*> property_values(count);
 
     for (auto kv : properties)
     {
         property_keys.push_back(kv.first.c_str());
-        property_values.push_back(kv.second.c_str());
+        property_values.push_back(kv.second);
     }
 
     for (auto kv : args.own_properties)
@@ -114,8 +114,8 @@ int run(arguments_t args, pal::string_t app_base, tpafile tpa)
     auto hr = coreclr::initialize(
         pal::to_stdstring(args.own_path).c_str(),
         "clrhost",
-        &property_keys[0],
-        &property_values[0],
+        property_keys.data(),
+        property_values.data(),
         property_keys.size(),
         &host_handle,
         &domain_id);
@@ -127,12 +127,11 @@ int run(arguments_t args, pal::string_t app_base, tpafile tpa)
 
     // Convert the args (probably not the most performant way to do this...)
     std::vector<std::string> argv_strs(args.app_argc);
-    std::vector<char*> argv(args.app_argc);
+    std::vector<const char*> argv(args.app_argc);
     for (int i = 0; i < args.app_argc; i++)
     {
-        std::string str(pal::to_stdstring(pal::string_t(args.app_argv[i])));
-        argv_strs.emplace_back(str);
-        argv.emplace_back(argv_strs.back().c_str());
+        argv_strs.emplace_back(pal::to_stdstring(pal::string_t(args.app_argv[i])));
+        argv.push_back(argv_strs.back().c_str());
     }
 
     // Execute the application
@@ -141,7 +140,7 @@ int run(arguments_t args, pal::string_t app_base, tpafile tpa)
         host_handle,
         domain_id,
         args.app_argc,
-        &argv[0],
+        argv.data(),
         pal::to_stdstring(args.managed_application).c_str(),
         &exit_code);
     if (!SUCCEEDED(hr))

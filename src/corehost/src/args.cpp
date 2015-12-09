@@ -76,9 +76,9 @@ bool parse_arguments(const int argc, const pal::char_t* argv[], arguments_t& arg
             break;
         }
 
-        pal::string_t property_key = property.substring(prefix.length(), pos - prefix.length());
-        pal::string_t property_value = property.substring(pos + 1);
-        own_properties.emplace(
+        pal::string_t property_key = property.substr(prefix.length(), pos - prefix.length());
+        pal::string_t property_value = property.substr(pos + 1);
+        args.own_properties.emplace(
                 pal::to_stdstring(property_key),
                 pal::to_stdstring(property_value));
 
