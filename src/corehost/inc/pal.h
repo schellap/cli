@@ -12,6 +12,7 @@
 #include <cstring>
 #include <cstdarg>
 #include <tuple>
+#include <unordered_map>
 
 #if defined(_WIN32)
 

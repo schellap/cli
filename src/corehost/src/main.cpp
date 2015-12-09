@@ -86,22 +86,26 @@ int run(arguments_t args, pal::string_t app_base, tpafile tpa)
     std::vector<char*> property_keys(count);
     std::vector<char*> property_values(count);
 
-    for (std::map<std::string, std::string>::iterator it = properties.begin();
-            it != properties.end(); ++it)
+    for (auto kv : properties)
     {
-        property_keys.push_back(it->first.c_str());
-        property_values.push_back(it->second.c_str());
+        property_keys.push_back(kv.first.c_str());
+        property_values.push_back(kv.second.c_str());
     }
 
-    for (std::map<std::string, std::string>::iterator it = args.own_properties.begin();
-            it != args.own_properties.end(); ++it)
+    for (auto kv : args.own_properties)
     {
         // Don't override basic properties.
-        if (properties.find(it->first) == properties.end())
+        if (properties.find(kv.first) == properties.end())
         {
-            property_keys.push_back(it->first.c_str());
-            property_values.push_back(it->second.c_str());
+            property_keys.push_back(kv.first.c_str());
+            property_values.push_back(kv.second.c_str());
         }
+    }
+    // Specify server GC if user did not specify SERVER_GC.
+    if (args.own_properties.find("SERVER_GC") == args.own_properties.end())
+    {
+        property_keys.push_back("SERVER_GC");
+        property_values.push_back("1");
     }
 
     // Initialize CoreCLR
@@ -122,13 +126,13 @@ int run(arguments_t args, pal::string_t app_base, tpafile tpa)
     }
 
     // Convert the args (probably not the most performant way to do this...)
-    // TODO: Fix leak.
-    auto argv_strs = new std::string[args.app_argc];
-    auto argv = new const char*[args.app_argc];
+    std::vector<std::string> argv_strs(args.app_argc);
+    std::vector<char*> argv(args.app_argc);
     for (int i = 0; i < args.app_argc; i++)
     {
-        argv_strs[i] = pal::to_stdstring(pal::string_t(args.app_argv[i]));
-        argv[i] = argv_strs[i].c_str();
+        std::string str(pal::to_stdstring(pal::string_t(args.app_argv[i])));
+        argv_strs.emplace_back(str);
+        argv.emplace_back(argv_strs.back().c_str());
     }
 
     // Execute the application
@@ -137,7 +141,7 @@ int run(arguments_t args, pal::string_t app_base, tpafile tpa)
         host_handle,
         domain_id,
         args.app_argc,
-        argv,
+        &argv[0],
         pal::to_stdstring(args.managed_application).c_str(),
         &exit_code);
     if (!SUCCEEDED(hr))
