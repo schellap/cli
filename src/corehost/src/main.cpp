@@ -58,30 +58,9 @@ int run(arguments_t args, pal::string_t app_base, tpafile tpa)
     tpa.write_native_paths(search_paths);
 
     // Build CoreCLR properties
-    const char* property_keys[] = {
-        "TRUSTED_PLATFORM_ASSEMBLIES",
-        "APP_PATHS",
-        "APP_NI_PATHS",
-        "NATIVE_DLL_SEARCH_DIRECTORIES",
-        "AppDomainCompatSwitch"
-    };
-
     auto tpa_cstr = pal::to_stdstring(tpalist);
     auto app_base_cstr = pal::to_stdstring(app_base);
     auto search_paths_cstr = pal::to_stdstring(search_paths);
-
-    const char* property_values[] = {
-        // TRUSTED_PLATFORM_ASSEMBLIES
-        tpa_cstr.c_str(),
-        // APP_PATHS
-        app_base_cstr.c_str(),
-        // APP_NI_PATHS
-        app_base_cstr.c_str(),
-        // NATIVE_DLL_SEARCH_DIRECTORIES
-        search_paths_cstr.c_str(),
-        // AppDomainCompatSwitch
-        "UseLatestBehaviorWhenTFMNotSpecified"
-    };
 
     // Dump TPA list
     trace::verbose(_X("TPA List: %s"), tpalist.c_str());
@@ -96,15 +75,44 @@ int run(arguments_t args, pal::string_t app_base, tpafile tpa)
         return 1;
     }
 
+    std::map<std::string, char*> properties;
+    properties.emplace("TRUSTED_PLATFORM_ASSEMBLIES", tpa_cstr.c_str());
+    properties.emplace("APP_PATHS", app_base_cstr.c_str());
+    properties.emplace("APP_NI_PATHS", app_base_cstr.c_str());
+    properties.emplace("NATIVE_DLL_SEARCH_DIRECTORIES", search_paths_cstr.c_str());
+    properties.emplace("AppDomainCompatSwitch", "UseLatestBehaviorWhenTFMNotSpecified");
+
+    int count = properties.size() + args.own_properties.size();
+    std::vector<char*> property_keys(count);
+    std::vector<char*> property_values(count);
+
+    for (std::map<std::string, std::string>::iterator it = properties.begin();
+            it != properties.end(); ++it)
+    {
+        property_keys.push_back(it->first.c_str());
+        property_values.push_back(it->second.c_str());
+    }
+
+    for (std::map<std::string, std::string>::iterator it = args.own_properties.begin();
+            it != args.own_properties.end(); ++it)
+    {
+        // Don't override basic properties.
+        if (properties.find(it->first) == properties.end())
+        {
+            property_keys.push_back(it->first.c_str());
+            property_values.push_back(it->second.c_str());
+        }
+    }
+
     // Initialize CoreCLR
     coreclr::host_handle_t host_handle;
     coreclr::domain_id_t domain_id;
     auto hr = coreclr::initialize(
         pal::to_stdstring(args.own_path).c_str(),
         "clrhost",
-        property_keys,
-        property_values,
-        sizeof(property_keys) / sizeof(property_keys[0]),
+        &property_keys[0],
+        &property_values[0],
+        property_keys.size(),
         &host_handle,
         &domain_id);
     if (!SUCCEEDED(hr))
@@ -114,6 +122,7 @@ int run(arguments_t args, pal::string_t app_base, tpafile tpa)
     }
 
     // Convert the args (probably not the most performant way to do this...)
+    // TODO: Fix leak.
     auto argv_strs = new std::string[args.app_argc];
     auto argv = new const char*[args.app_argc];
     for (int i = 0; i < args.app_argc; i++)

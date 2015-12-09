@@ -58,6 +58,34 @@ bool parse_arguments(const int argc, const pal::char_t* argv[], arguments_t& arg
         args.app_argc = argc - 1;
     }
 
+
+    // Parse own properties specified with -p:KEY1=VALUE1 -p:KEY2=VALUE2.
+    while (args.app_argc > 1)
+    {
+        pal::string_t property(args.app_argv[0]);
+
+        pal::string_t prefix = _X("-p:");
+        if (property.find(prefix) != 0)
+        {
+            break;
+        }
+
+        std::size_t pos = property.find(_X("="), prefix.length());
+        if (pos == pal::string_t::npos)
+        {
+            break;
+        }
+
+        pal::string_t property_key = property.substring(prefix.length(), pos - prefix.length());
+        pal::string_t property_value = property.substring(pos + 1);
+        own_properties.emplace(
+                pal::to_stdstring(property_key),
+                pal::to_stdstring(property_value));
+
+        args.app_argc--;
+        args.app_argv++;
+    }
+
     // Read trace environment variable
     pal::string_t trace_str;
     if (pal::getenv(_X("COREHOST_TRACE"), trace_str))
