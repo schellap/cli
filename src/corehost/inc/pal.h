@@ -13,6 +13,8 @@
 #include <cstdarg>
 #include <tuple>
 #include <unordered_map>
+#include <algorithm>
+#include <iterator>
 
 #if defined(_WIN32)
 

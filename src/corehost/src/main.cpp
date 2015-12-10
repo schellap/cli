@@ -28,6 +28,34 @@ void get_tpafile_path(const pal::string_t& app_base, const pal::string_t& app_na
     tpapath.append(_X(".deps"));
 }
 
+void construct_properties(
+        const std::unordered_map<std::string, const char*>& base_properties,
+        const std::unordered_map<std::string, std::string>& own_properties,
+        std::vector<const char*>* property_keys,
+        std::vector<const char*>* property_values)
+{
+    for (const auto& kv : base_properties)
+    {
+        property_keys->emplace_back(kv.first.c_str());
+        property_values->emplace_back(kv.second);
+    }
+    for (const auto& kv : own_properties)
+    {
+        // Don't override base properties.
+        if (base_properties.count(kv.first) == 0)
+        {
+            property_keys->emplace_back(kv.first.c_str());
+            property_values->emplace_back(kv.second.c_str());
+        }
+    }
+    // Specify server GC if user did not specify SERVER_GC.
+    if (own_properties.count("SERVER_GC") == 0)
+    {
+        property_keys->emplace_back("SERVER_GC");
+        property_values->emplace_back("1");
+    }
+}
+
 int run(arguments_t args, pal::string_t app_base, tpafile tpa)
 {
     tpa.add_from_local_dir(app_base);
@@ -75,38 +103,19 @@ int run(arguments_t args, pal::string_t app_base, tpafile tpa)
         return 1;
     }
 
-    std::unordered_map<std::string, const char*> properties;
-    properties.emplace("TRUSTED_PLATFORM_ASSEMBLIES", tpa_cstr.c_str());
-    properties.emplace("APP_PATHS", app_base_cstr.c_str());
-    properties.emplace("APP_NI_PATHS", app_base_cstr.c_str());
-    properties.emplace("NATIVE_DLL_SEARCH_DIRECTORIES", search_paths_cstr.c_str());
-    properties.emplace("AppDomainCompatSwitch", "UseLatestBehaviorWhenTFMNotSpecified");
+    // Keep lifetime of base_properties/args.own_properties beyond property_keys/values
+    // since we get c_strs out of the former.
+    std::unordered_map<std::string, const char*> base_properties;
+    std::vector<const char*> property_keys;
+    std::vector<const char*> property_values;
 
-    int count = properties.size() + args.own_properties.size();
-    std::vector<const char*> property_keys(count);
-    std::vector<const char*> property_values(count);
+    base_properties.emplace("TRUSTED_PLATFORM_ASSEMBLIES", tpa_cstr.c_str());
+    base_properties.emplace("APP_PATHS", app_base_cstr.c_str());
+    base_properties.emplace("APP_NI_PATHS", app_base_cstr.c_str());
+    base_properties.emplace("NATIVE_DLL_SEARCH_DIRECTORIES", search_paths_cstr.c_str());
+    base_properties.emplace("AppDomainCompatSwitch", "UseLatestBehaviorWhenTFMNotSpecified");
 
-    for (auto kv : properties)
-    {
-        property_keys.push_back(kv.first.c_str());
-        property_values.push_back(kv.second);
-    }
-
-    for (auto kv : args.own_properties)
-    {
-        // Don't override basic properties.
-        if (properties.find(kv.first) == properties.end())
-        {
-            property_keys.push_back(kv.first.c_str());
-            property_values.push_back(kv.second.c_str());
-        }
-    }
-    // Specify server GC if user did not specify SERVER_GC.
-    if (args.own_properties.find("SERVER_GC") == args.own_properties.end())
-    {
-        property_keys.push_back("SERVER_GC");
-        property_values.push_back("1");
-    }
+    construct_properties(base_properties, args.own_properties, &property_keys, &property_values);
 
     // Initialize CoreCLR
     coreclr::host_handle_t host_handle;
@@ -126,11 +135,15 @@ int run(arguments_t args, pal::string_t app_base, tpafile tpa)
     }
 
     // Convert the args (probably not the most performant way to do this...)
-    std::vector<std::string> argv_strs(args.app_argc);
-    std::vector<const char*> argv(args.app_argc);
+    std::vector<std::string> argv_strs;
+    std::vector<const char*> argv;
+
+    // Set capacity so vector is not resized and string copied for c_strs.
+    argv_strs.reserve(args.app_argc);
+    argv.reserve(args.app_argc);
     for (int i = 0; i < args.app_argc; i++)
     {
-        argv_strs.emplace_back(pal::to_stdstring(pal::string_t(args.app_argv[i])));
+        argv_strs.push_back(pal::to_stdstring(pal::string_t(args.app_argv[i])));
         argv.push_back(argv_strs.back().c_str());
     }
 
