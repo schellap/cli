@@ -151,6 +151,12 @@ void pal::to_stdstring(const pal::char_t* str, std::string* out)
 
 bool pal::realpath(string_t* path)
 {
+    if (path->empty())
+    {
+        return false;
+    }
+
+    trace::info(_X("realpath(%s)"), path->c_str());
     std::vector<char_t> buf(MAX_PATH);
     auto res = ::GetFullPathNameW(path->c_str(), MAX_PATH, buf.data(), nullptr);
     if (res >= MAX_PATH)
@@ -160,10 +166,11 @@ bool pal::realpath(string_t* path)
     }
     if (res == 0)
     {
-        trace::error(_X("Error resolving path: %s"), path->c_str());
+        trace::error(_X("Error GetFullPathNameW: %s"), path->c_str());
         return false;
     }
 
+    trace::info(_X("\tFULL PATH: %s"), buf.data());
 	class HandleHolder
 	{
 		HANDLE hnd;
@@ -172,6 +179,7 @@ bool pal::realpath(string_t* path)
 		HandleHolder(HANDLE hnd) : hnd(hnd) { }
 		~HandleHolder() { ::CloseHandle(hnd); }
 	};
+
     HandleHolder holder(
 		::CreateFileW(
 			buf.data(),            // file to open
@@ -184,7 +192,7 @@ bool pal::realpath(string_t* path)
 
     if (holder.Handle() == INVALID_HANDLE_VALUE)
     {
-        trace::error(_X("Error CreateFile: %s; GetLastError=%08x"), path->c_str(), GetLastError());
+        trace::error(_X("Error CreateFile: %s; GetLastError=%08x"), buf.data(), GetLastError());
         return false;
     }
 
@@ -198,11 +206,17 @@ bool pal::realpath(string_t* path)
     }
     if (res == 0)
     {
-        trace::error(_X("Error resolving path: %s"), path->c_str());
+        trace::error(_X("Error GetFinalPathNameByHandleW: %s; %08x"), path->c_str(), GetLastError());
         return false;
     }
 
+    trace::info(_X("\tSYM PATH: %s"), buf.data());
+
     path->assign(buf.data());
+    if (starts_with(*path, _X("\\\\?\\")))
+    {
+        path->erase(0, 4);
+    }
     return true;
 }
 
@@ -212,15 +226,17 @@ bool pal::file_exists(string_t* path)
     {
         return false;
     }
-    if (!realpath(path))
-    {
-        return false;
-    }
 
     WIN32_FIND_DATAW data;
     auto find_handle = ::FindFirstFileW(path->c_str(), &data);
     bool found = find_handle != INVALID_HANDLE_VALUE;
     ::FindClose(find_handle);
+
+    if (!found)
+    {
+        found = realpath(path);
+    }
+
     return found;
 }
 
