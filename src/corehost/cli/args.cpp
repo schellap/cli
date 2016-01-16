@@ -78,10 +78,10 @@ bool parse_arguments(const int argc, const pal::char_t* argv[], arguments_t& arg
         args.app_argc = argc - 1;
     }
 
-    if(args.app_argc > 0)
+    if (args.app_argc > 0)
     {
         auto depsfile_candidate = pal::string_t(args.app_argv[0]);
-        
+
         if (starts_with(depsfile_candidate, s_depsArgPrefix))
         {
             args.deps_path = depsfile_candidate.substr(s_depsArgPrefix.length());
@@ -95,7 +95,7 @@ bool parse_arguments(const int argc, const pal::char_t* argv[], arguments_t& arg
             args.app_argv = &args.app_argv[1];
         }
     }
-    
+
     if (args.deps_path.empty())
     {
         const auto& app_base = args.app_dir;
@@ -113,5 +113,6 @@ bool parse_arguments(const int argc, const pal::char_t* argv[], arguments_t& arg
     pal::getenv(_X("DOTNET_SERVICING"), &args.dotnet_servicing);
     pal::getenv(_X("DOTNET_RUNTIME_SERVICING"), &args.dotnet_runtime_servicing);
     pal::getenv(_X("DOTNET_HOME"), &args.dotnet_home);
+
     return true;
 }

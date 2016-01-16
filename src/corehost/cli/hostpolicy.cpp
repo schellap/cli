@@ -84,7 +84,7 @@ int run(const arguments_t& args, const pal::string_t& clr_path)
 
     // Add packages directory
     pal::string_t packages_dir = args.nuget_packages;
-    if (!pal::directory_exists(packages_dir))
+    if (!pal::directory_exists(&packages_dir))
     {
         (void)pal::get_default_packages_directory(&packages_dir);
     }
@@ -225,6 +225,8 @@ int run(const arguments_t& args, const pal::string_t& clr_path)
 
 SHARED_API int corehost_main(const int argc, const pal::char_t* argv[])
 {
+    trace::setup();
+
     // Take care of arguments
     arguments_t args;
     if (!parse_arguments(argc, argv, args))

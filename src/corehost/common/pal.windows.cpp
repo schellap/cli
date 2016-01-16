@@ -162,17 +162,18 @@ bool pal::realpath(string_t* path)
     return true;
 }
 
-bool pal::file_exists(const string_t& path)
+bool pal::file_exists(string_t* path)
 {
-    if (path.empty())
+    if (path->empty())
     {
         return false;
     }
 
     WIN32_FIND_DATAW data;
-    auto find_handle = ::FindFirstFileW(path.c_str(), &data);
+    auto find_handle = ::FindFirstFileW(path->c_str(), &data);
     bool found = find_handle != INVALID_HANDLE_VALUE;
     ::FindClose(find_handle);
+
     return found;
 }
 

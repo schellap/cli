@@ -121,8 +121,8 @@ namespace pal
     inline void to_stdstring(const pal::char_t* str, std::string* out) { out->assign(str); }
 #endif
     bool realpath(string_t* path);
-    bool file_exists(const string_t& path);
-    inline bool directory_exists(const string_t& path) { return file_exists(path); }
+    bool file_exists(string_t* path);
+    inline bool directory_exists(string_t* path) { return file_exists(path); }
     void readdir(const string_t& path, std::vector<pal::string_t>* list);
 
     bool get_own_executable_path(string_t* recv);

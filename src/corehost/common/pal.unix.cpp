@@ -133,8 +133,7 @@ bool pal::getenv(const pal::char_t* name, pal::string_t* recv)
 
 bool pal::realpath(pal::string_t* path)
 {
-    pal::char_t buf[PATH_MAX];
-    auto resolved = ::realpath(path->c_str(), buf);
+    auto resolved = ::realpath(path->c_str(), nullptr);
     if (resolved == nullptr)
     {
         if (errno == ENOENT)
@@ -145,17 +144,22 @@ bool pal::realpath(pal::string_t* path)
         return false;
     }
     path->assign(resolved);
+    ::free(resolved);
     return true;
 }
 
-bool pal::file_exists(const pal::string_t& path)
+bool pal::file_exists(pal::string_t* path)
 {
-    if (path.empty())
+    if (path->empty())
+    {
+        return false;
+    }
+    if (!realpath(path))
     {
         return false;
     }
     struct stat buffer;
-    return (::stat(path.c_str(), &buffer) == 0);
+    return (::stat(path->c_str(), &buffer) == 0);
 }
 
 void pal::readdir(const pal::string_t& path, std::vector<pal::string_t>* list)
