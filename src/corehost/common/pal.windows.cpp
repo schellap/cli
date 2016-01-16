@@ -151,26 +151,74 @@ void pal::to_stdstring(const pal::char_t* str, std::string* out)
 
 bool pal::realpath(string_t* path)
 {
-    char_t buf[MAX_PATH];
-    auto res = ::GetFullPathNameW(path->c_str(), MAX_PATH, buf, nullptr);
-    if (res == 0 || res > MAX_PATH)
+    std::vector<char_t> buf(MAX_PATH);
+    auto res = ::GetFullPathNameW(path->c_str(), MAX_PATH, buf.data(), nullptr);
+    if (res >= MAX_PATH)
+    {
+        buf.resize(res);
+        res = ::GetFullPathNameW(path->c_str(), buf.size(), buf.data(), nullptr);
+    }
+    if (res == 0)
     {
         trace::error(_X("Error resolving path: %s"), path->c_str());
         return false;
     }
-    path->assign(buf);
+
+	class HandleHolder
+	{
+		HANDLE hnd;
+	public:
+		HANDLE Handle() { return hnd; }
+		HandleHolder(HANDLE hnd) : hnd(hnd) { }
+		~HandleHolder() { ::CloseHandle(hnd); }
+	};
+    HandleHolder holder(
+		::CreateFileW(
+			buf.data(),            // file to open
+			GENERIC_READ,          // open for reading
+			FILE_SHARE_READ,       // share for reading
+			NULL,                  // default security
+			OPEN_EXISTING,         // existing file only
+			FILE_ATTRIBUTE_NORMAL, // normal file
+			NULL));                 // no attr. template
+
+    if (holder.Handle() == INVALID_HANDLE_VALUE)
+    {
+        trace::error(_X("Error CreateFile: %s; GetLastError=%08x"), path->c_str(), GetLastError());
+        return false;
+    }
+
+    res = ::GetFinalPathNameByHandleW(
+				holder.Handle(), buf.data(), buf.size(), FILE_NAME_NORMALIZED);
+    if (res >= buf.size())
+    {
+        buf.resize(res);
+        res = ::GetFinalPathNameByHandleW(
+					holder.Handle(), buf.data(), buf.size(), FILE_NAME_NORMALIZED);
+    }
+    if (res == 0)
+    {
+        trace::error(_X("Error resolving path: %s"), path->c_str());
+        return false;
+    }
+
+    path->assign(buf.data());
     return true;
 }
 
-bool pal::file_exists(const string_t& path)
+bool pal::file_exists(string_t* path)
 {
-    if (path.empty())
+    if (path->empty())
+    {
+        return false;
+    }
+    if (!realpath(path))
     {
         return false;
     }
 
     WIN32_FIND_DATAW data;
-    auto find_handle = ::FindFirstFileW(path.c_str(), &data);
+    auto find_handle = ::FindFirstFileW(path->c_str(), &data);
     bool found = find_handle != INVALID_HANDLE_VALUE;
     ::FindClose(find_handle);
     return found;

@@ -39,7 +39,7 @@ StatusCode load_host_lib(const pal::string_t& lib_dir, pal::dll_t* h_host, coreh
     append_path(&host_path, LIBHOST_NAME);
 
     // Missing library
-    if (!pal::file_exists(host_path))
+    if (!pal::file_exists(&host_path))
     {
         return StatusCode::CoreHostLibMissingFailure;
     }

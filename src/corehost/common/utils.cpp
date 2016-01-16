@@ -9,7 +9,7 @@ bool coreclr_exists_in_dir(const pal::string_t& candidate)
     pal::string_t test(candidate);
     append_path(&test, LIBCORECLR_NAME);
     trace::verbose(_X("checking for CoreCLR in default location: %s"), test.c_str());
-    return pal::file_exists(test);
+    return pal::file_exists(&test);
 }
 
 bool ends_with(const pal::string_t& value, const pal::string_t& suffix)

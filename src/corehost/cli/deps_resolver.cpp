@@ -109,14 +109,14 @@ void add_tpa_asset(
 void add_mscorlib_to_tpa(const pal::string_t& clr_dir, std::set<pal::string_t>* items, pal::string_t* output)
 {
     pal::string_t mscorlib_ni_path = clr_dir + DIR_SEPARATOR + _X("mscorlib.ni.dll");
-    if (pal::file_exists(mscorlib_ni_path))
+    if (pal::file_exists(&mscorlib_ni_path))
     {
         add_tpa_asset(_X("mscorlib"),  mscorlib_ni_path, items, output);
         return;
     }
 
     pal::string_t mscorlib_path = clr_dir + DIR_SEPARATOR + _X("mscorlib.dll");
-    if (pal::file_exists(mscorlib_path))
+    if (pal::file_exists(&mscorlib_path))
     {
         add_tpa_asset(_X("mscorlib"),  mscorlib_ni_path, items, output);
         return;
@@ -183,7 +183,7 @@ bool deps_entry_t::to_full_path(const pal::string_t& base, pal::string_t* str) c
     append_path(&candidate, library_version.c_str());
     append_path(&candidate, pal_relative_path.c_str());
 
-    bool exists = pal::file_exists(candidate);
+    bool exists = pal::file_exists(&candidate);
     if (!exists)
     {
         candidate.clear();
@@ -285,7 +285,7 @@ bool deps_entry_t::to_hash_matched_path(const pal::string_t& base, pal::string_t
 bool deps_resolver_t::load()
 {
     // If file doesn't exist, then assume parsed.
-    if (!pal::file_exists(m_deps_path))
+    if (!pal::file_exists(&m_deps_path))
     {
         return true;
     }

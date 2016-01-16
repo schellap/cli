@@ -14,7 +14,7 @@ servicing_index_t::servicing_index_t(const pal::string_t& svc_dir)
         m_index_file.assign(m_patch_root);
         append_path(&m_index_file, DOTNET_SERVICING_INDEX_TXT);
     }
-    m_parsed = m_index_file.empty() || !pal::file_exists(m_index_file);
+    m_parsed = m_index_file.empty() || !pal::file_exists(&m_index_file);
 }
 
 bool servicing_index_t::find_redirection(
@@ -40,7 +40,7 @@ bool servicing_index_t::find_redirection(
     {
         pal::string_t full_path = m_patch_root;
         append_path(&full_path, iter->second.c_str());
-        if (pal::file_exists(full_path))
+        if (pal::file_exists(&full_path))
         {
             *redirection = full_path;
             trace::verbose(_X("Servicing %s with %s"), stream.str().c_str(), redirection->c_str());
