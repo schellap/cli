@@ -32,7 +32,7 @@ else
 fi
 
 # Create nupkg for the host
-local PACKAGE_VERSION=$(cat "$REPOROOT/src/corehost/.version")
+PACKAGE_VERSION=$(cat "$REPOROOT/src/corehost/.version")
 read -d '' NUSPEC_CONTENTS <<"NUSPEC"
 <?xml version="1.0" encoding="utf-8"?>
 <package xmlns="http://schemas.microsoft.com/packaging/2011/08/nuspec.xsd">
@@ -53,9 +53,9 @@ read -d '' NUSPEC_CONTENTS <<"NUSPEC"
 </package>
 NUSPEC
 
-local PACKAGE_NAME=Microsoft.DotNet.CoreHost
-local PACKAGE_ROOT=$HOST_DIR/$PACKAGE_NAME
-local PACKAGE_NATIVE=$PACKAGE_ROOT/runtimes/$RID/native/
+PACKAGE_NAME=Microsoft.DotNet.CoreHost
+PACKAGE_ROOT=$HOST_DIR/$PACKAGE_NAME
+PACKAGE_NATIVE=$PACKAGE_ROOT/runtimes/$RID/native/
 mkdir -p $PACKAGE_NATIVE
 echo $NUSPEC_CONTENTS > $PACKAGE_ROOT/$COREHOST_PACKAGE_NAME.$COREHOST_VERSION.nuspec
 
@@ -66,7 +66,6 @@ do
   cp "$REPOROOT/src/corehost/cmake/$RID/cli/dll/${COREHOST_LIBNAME}" $TARGET_DIR
 done
 
-zip -r $PACKAGE_NAME $PACKAGE_NAME
-mv $PACKAGE_NAME.zip $PACKAGE_NAME.nupkg
+zip -r $PACKAGE_NAME.nupkg $PACKAGE_NAME
 
 popd 2>&1 >/dev/null
