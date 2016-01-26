@@ -62,7 +62,7 @@ function Bin-Place
 function Package-CoreHost
 {
     # Create nupkg for the host
-    $PackageVersion=[System.IO.File]::ReadAllText("$RepoRoot\src\corehost\.version").Trim()
+    $PackageVersion=[System.IO.File]::ReadAllText("$RepoRoot\src\corehost\packaging\.version").Trim()
     $NuSpecContents = 
 @"
 <?xml version="1.0" encoding="utf-8"?>
@@ -84,16 +84,6 @@ function Package-CoreHost
 </package>
 "@ -f $PackageVersion
 
-    $ContentTypesXml =
-@"
-<?xml version="1.0" encoding="utf-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml" /><Default Extension="nuspec" ContentType="application/octet" /><Default Extension="exe" ContentType="application/octet" /><Default Extension="pdb" ContentType="application/octet" /><Default Extension="dll" ContentType="application/octet" /><Default Extension="psmdcp" ContentType="application/vnd.openxmlformats-package.core-properties+xml" /></Types>
-"@
-
-    $RelsContent =
-@"
-<?xml version="1.0" encoding="utf-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Type="http://schemas.microsoft.com/packaging/2010/07/manifest" Target="/Microsoft.DotNet.CoreHost.nuspec" Id="R4f414a783aa14934" /><Relationship Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="/package/services/metadata/core-properties/d1aa6e3b9d354a24915fc891446aba30.psmdcp" Id="Rf698eab28bde4c20" /></Relationships>
-"@
-
     $PackageName="Microsoft.DotNet.CoreHost"
     $PackageRoot="$HostDir\$PackageName"
     $PackageNative="$PackageRoot\runtimes\$RID\native"
@@ -101,16 +91,16 @@ function Package-CoreHost
     New-Item -ItemType Directory -Force -Path "$PackageRoot\_rels" | Out-Null
     $Utf8Encoding = New-Object System.Text.UTF8Encoding($False)
     [System.IO.File]::WriteAllLines("$PackageRoot\$PackageName.nuspec", $NuSpecContents, $Utf8Encoding)
-    [System.IO.File]::WriteAllLines("$PackageRoot\[Content_Types].xml", $ContentTypesXml, $Utf8Encoding)
-    [System.IO.File]::WriteAllLines("$PackageRoot\_rels\", $ContentTypesXml, $Utf8Encoding)
 
+    cp "$RepoRoot\src\corehost\packaging\_rels\.rels" "$PackageRoot\_rels\.rels"
+    cp "$RepoRoot\src\corehost\packaging\``[Content_Types``].xml" "$PackageRoot\`[Content_Types`].xml"
     $TargetDirs = @("$HostDir", "$PackageNative")
     foreach ($TargetDir in $TargetDirs) {
         Bin-Place -TargetDir $TargetDir
     }
 
     $NuPkgFile = "$HostDir\$PackageName.$PackageVersion.nupkg"
-    If (Test-Path $NuPkgFile){
+    If (Test-Path $NuPkgFile) {
 	    Remove-Item $NuPkgFile
     }
 

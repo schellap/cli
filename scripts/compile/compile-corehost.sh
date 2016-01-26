@@ -32,7 +32,7 @@ else
 fi
 
 # Create nupkg for the host
-PACKAGE_VERSION=$(cat "$REPOROOT/src/corehost/.version")
+PACKAGE_VERSION=$(cat "$REPOROOT/src/corehost/packaging/.version")
 read -d '' NUSPEC_CONTENTS <<"NUSPEC"
 <?xml version="1.0" encoding="utf-8"?>
 <package xmlns="http://schemas.microsoft.com/packaging/2011/08/nuspec.xsd">
@@ -58,6 +58,8 @@ PACKAGE_ROOT=$HOST_DIR/$PACKAGE_NAME
 PACKAGE_NATIVE=$PACKAGE_ROOT/runtimes/$RID/native/
 mkdir -p $PACKAGE_NATIVE
 echo $NUSPEC_CONTENTS > $PACKAGE_ROOT/$PACKAGE_NAME.nuspec
+cp "$REPOROOT/src/corehost/packaging/[Content_Types].xml" $PACKAGE_ROOT
+cp -rf "$REPOROOT/src/corehost/packaging/_rels" $PACKAGE_ROOT
 
 TARGET_DIRS=("$HOST_DIR" "$PACKAGE_NATIVE")
 for TARGET_DIR in "${TARGET_DIRS[@]}"
