@@ -11,6 +11,18 @@
 
 static std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> g_converter;
 
+bool pal::ensure_file(const pal::string_t& src, const pal::string_t& dest)
+{
+    BOOLEAN result = ::CopyFileW(src.c_str(), dest.c_str(), TRUE);
+    if (result == 0)
+    {
+        trace::verbose(_X("Failed to copy from %s -> %s, HRESULT: 0x%X"), src.c_str(), dest.c_str(), HRESULT_FROM_WIN32(GetLastError()));
+        return false;
+    }
+    trace::verbose(_X("Copied %s -> %s"), src.c_str(), dest.c_str());
+    return true;
+}
+
 bool pal::find_coreclr(pal::string_t* recv)
 {
     pal::string_t candidate;

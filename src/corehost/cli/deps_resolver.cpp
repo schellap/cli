@@ -123,7 +123,7 @@ void add_mscorlib_to_tpa(const pal::string_t& clr_dir, std::set<pal::string_t>* 
     pal::string_t mscorlib_path = clr_dir + DIR_SEPARATOR + _X("mscorlib.dll");
     if (pal::file_exists(mscorlib_path))
     {
-        add_tpa_asset(_X("mscorlib"), mscorlib_ni_path, items, output);
+        add_tpa_asset(_X("mscorlib"), mscorlib_path, items, output);
         return;
     }
 }
@@ -153,6 +153,14 @@ void add_unique_path(
 
     output->push_back(PATH_SEPARATOR);
     existing->insert(real);
+}
+
+// -----------------------------------------------------------------------------
+// Given two deps file entry, returns "true" if they are from the same nupkg
+//
+bool is_in_same_package(const deps_entry_t& entry1, const deps_entry_t& entry2)
+{
+    return entry1.library_name == entry2.library_name && entry1.library_version == entry2.library_version;
 }
 
 } // end of anonymous namespace
@@ -346,6 +354,37 @@ bool deps_resolver_t::load()
         replace_char(&entry.relative_path, _X('\\'), _X('/'));
 
         m_deps_entries.push_back(entry);
+
+        trace::verbose(_X("Added deps entry [%d] [%s, %s, %s]"), m_deps_entries.size() - 1, entry.library_name.c_str(), entry.library_version.c_str(), entry.relative_path.c_str());
+
+        static_assert(std::is_same<std::vector<deps_entry_t>, decltype(m_deps_entries)>::value, "decltype(m_deps_entries) not a vector, took index based on size.");
+        if (entry.asset_type == _X("native") &&
+            entry.asset_name == LIBCORECLR_FILENAME &&
+            // Either mscorlib wasn't found yet or if found coreclr should be in the same package
+            (m_mscorlib_index < 0 || is_in_same_package(entry, m_deps_entries[m_mscorlib_index])))
+        {
+            m_coreclr_index = m_deps_entries.size() - 1;
+            trace::verbose(_X("Found coreclr from deps entry [%d] [%s, %s, %s]"),
+                    m_coreclr_index,
+                    entry.library_name.c_str(),
+                    entry.library_version.c_str(),
+                    entry.relative_path.c_str());
+        }
+        if (entry.asset_type == _X("runtime") &&
+            // Either coreclr wasn't found yet or if found mscorlib should be in the same package
+            (m_coreclr_index < 0 || is_in_same_package(entry, m_deps_entries[m_coreclr_index])) &&
+            // Workaround: asset_name in deps includes .ni suffix which is a violation of the spec.
+            (entry.asset_name == _X("mscorlib") || entry.asset_name == _X("mscorlib.ni")) &&
+            // Give preference to mscorlib.ni.dll even if mscorlib.dll was encountered before.
+            (ends_with(entry.relative_path, _X("mscorlib.ni.dll")) || (m_mscorlib_index < 0 && ends_with(entry.relative_path, _X("mscorlib.dll")))))
+        {
+            m_mscorlib_index = m_deps_entries.size() - 1;
+            trace::verbose(_X("Found mscorlib from deps entry [%d] [%s, %s, %s]"),
+                    m_mscorlib_index,
+                    entry.library_name.c_str(),
+                    entry.library_version.c_str(),
+                    entry.relative_path.c_str());
+        }
     }
     return true;
 }
@@ -379,9 +418,9 @@ void deps_resolver_t::get_local_assemblies(const pal::string_t& dir)
     std::vector<pal::string_t> files;
     pal::readdir(dir, &files);
 
-    for (const auto& file : files)
+    for (const auto& ext : managed_ext)
     {
-        for (const auto& ext : managed_ext)
+        for (const auto& file : files)
         {
             // Nothing to do if file length is smaller than expected ext.
             if (file.length() <= ext.length())
@@ -412,6 +451,109 @@ void deps_resolver_t::get_local_assemblies(const pal::string_t& dir)
             m_local_assemblies.emplace(file_name, file_path);
         }
     }
+}
+
+// -----------------------------------------------------------------------------
+// Patch mscorlib from package relative dir if not sxs coreclr.
+//
+// TEMPORARY WORKAROUND for NuGet packages that don't contain sxs mscorlib.
+//
+bool deps_resolver_t::patch_mscorlib(const pal::string_t& packages_root, const pal::string_t& package_coreclr_dir)
+{
+    pal::string_t mscorlib_path = package_coreclr_dir;
+    append_path(&mscorlib_path, _X("mscorlib.dll"));
+
+    pal::string_t mscorlib_ni_path = package_coreclr_dir;
+    append_path(&mscorlib_ni_path, _X("mscorlib.ni.dll"));
+
+    if (pal::file_exists(mscorlib_ni_path) || pal::file_exists(mscorlib_path))
+    {
+        trace::verbose(_X("Found mscorlib in coreclr dir [%s]"), package_coreclr_dir.c_str());
+        return true;
+    }
+
+    if (m_mscorlib_index < 0)
+    {
+        return false;
+    }
+
+    pal::string_t mscorlib;
+    if (m_deps_entries[m_mscorlib_index].to_full_path(packages_root, &mscorlib))
+    {
+        const pal::string_t& dest = ends_with(mscorlib, _X(".ni.dll")) ? mscorlib_ni_path : mscorlib_path;
+        trace::verbose(_X("Did not find mscorlib in coreclr dir=[%s], patching file [%s] -> [%s]"), package_coreclr_dir.c_str(), mscorlib.c_str(), dest.c_str());
+        return pal::ensure_file(mscorlib, dest);
+    }
+    return false;
+}
+
+// -----------------------------------------------------------------------------
+// Resolve coreclr directory from the deps file.
+//
+// Description:
+//    Look for CoreCLR from the dependency list in the package cache and then
+//    the packages directory.
+//
+pal::string_t deps_resolver_t::resolve_coreclr_dir(
+    const pal::string_t& app_dir,
+    const pal::string_t& package_dir,
+    const pal::string_t& package_cache_dir)
+{
+    // Runtime servicing
+    trace::verbose(_X("Probing for CoreCLR in servicing dir=[%s]"), m_runtime_svc.c_str());
+    if (!m_runtime_svc.empty())
+    {
+        pal::string_t svc_clr = m_runtime_svc;
+        append_path(&svc_clr, _X("runtime"));
+        append_path(&svc_clr, _X("coreclr"));
+
+        if (coreclr_exists_in_dir(svc_clr))
+        {
+            return svc_clr;
+        }
+    }
+
+    // Package cache.
+    trace::verbose(_X("Probing for CoreCLR in package cache=[%s] deps index: [%d]"), package_cache_dir.c_str(), m_coreclr_index);
+    pal::string_t coreclr_cache;
+    if (m_coreclr_index >= 0 && !package_cache_dir.empty() &&
+            m_deps_entries[m_coreclr_index].to_hash_matched_path(package_cache_dir, &coreclr_cache))
+    {
+        pal::string_t coreclr_dir = get_directory(coreclr_cache);
+        if (patch_mscorlib(package_cache_dir, coreclr_dir))
+        {
+            return coreclr_dir;
+        }
+    }
+
+    // App dir.
+    trace::verbose(_X("Probing for CoreCLR in app directory=[%s]"), app_dir.c_str());
+    if (coreclr_exists_in_dir(app_dir))
+    {
+        return app_dir;
+    }
+
+    // Packages dir
+    trace::verbose(_X("Probing for CoreCLR in packages=[%s] deps index: [%d]"), package_dir.c_str(), m_coreclr_index);
+    pal::string_t coreclr_package;
+    if (m_coreclr_index >= 0 && !package_dir.empty() &&
+            m_deps_entries[m_coreclr_index].to_full_path(package_dir, &coreclr_package))
+    {
+        pal::string_t coreclr_dir = get_directory(coreclr_package);
+        if (patch_mscorlib(package_dir, coreclr_dir))
+        {
+            return coreclr_dir;
+        }
+    }
+
+    // Use platform-specific search algorithm
+    pal::string_t install_dir;
+    if (pal::find_coreclr(&install_dir))
+    {
+        return install_dir;
+    }
+
+    return pal::string_t();
 }
 
 // -----------------------------------------------------------------------------
@@ -549,11 +691,14 @@ void deps_resolver_t::resolve_probe_dirs(
     pal::string_t candidate;
 
     // Take care of the secondary cache path
-    for (const deps_entry_t& entry : m_deps_entries)
+    if (!package_cache_dir.empty())
     {
-        if (entry.asset_type == asset_type && entry.to_hash_matched_path(package_cache_dir, &candidate))
+        for (const deps_entry_t& entry : m_deps_entries)
         {
-            add_unique_path(asset_type, action(candidate), &items, output);
+            if (entry.asset_type == asset_type && entry.to_hash_matched_path(package_cache_dir, &candidate))
+            {
+                add_unique_path(asset_type, action(candidate), &items, output);
+            }
         }
     }
 
@@ -561,11 +706,14 @@ void deps_resolver_t::resolve_probe_dirs(
     add_unique_path(asset_type, app_dir, &items, output);
 
     // Take care of the package restore path
-    for (const deps_entry_t& entry : m_deps_entries)
+    if (!package_dir.empty())
     {
-        if (entry.asset_type == asset_type && entry.to_full_path(package_dir, &candidate))
+        for (const deps_entry_t& entry : m_deps_entries)
         {
-            add_unique_path(asset_type, action(candidate), &items, output);
+            if (entry.asset_type == asset_type && entry.to_full_path(package_dir, &candidate))
+            {
+                add_unique_path(asset_type, action(candidate), &items, output);
+            }
         }
     }
 

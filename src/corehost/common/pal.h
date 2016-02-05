@@ -48,14 +48,19 @@
 
 #endif
 
+
 #if defined(_WIN32)
+#define LIB_PREFIX
 #define MAKE_LIBNAME(NAME) (_X(NAME) _X(".dll"))
 #elif defined(__APPLE__)
-#define MAKE_LIBNAME(NAME) (_X("lib") _X(NAME) _X(".dylib"))
+#define LIB_PREFIX _X("lib")
+#define MAKE_LIBNAME(NAME) (LIB_PREFIX _X(NAME) _X(".dylib"))
 #else
-#define MAKE_LIBNAME(NAME) (_X("lib") _X(NAME) _X(".so"))
+#define LIB_PREFIX _X("lib")
+#define MAKE_LIBNAME(NAME) (LIB_PREFIX _X(NAME) _X(".so"))
 #endif
 
+#define LIBCORECLR_FILENAME (LIB_PREFIX _X("coreclr"))
 #define LIBCORECLR_NAME MAKE_LIBNAME("coreclr")
 
 #if !defined(PATH_MAX) && !defined(_WIN32)
@@ -118,8 +123,9 @@ namespace pal
     inline pal::string_t to_palstring(const std::string& str) { return str; }
     inline std::string to_stdstring(const pal::string_t& str) { return str; }
     inline void to_palstring(const char* str, pal::string_t* out) { out->assign(str); }
-    inline void to_stdstring(const pal::char_t* str, std::string* out) { out->assign(str); }
+    inline void to_stdstring(const char_t* str, std::string* out) { out->assign(str); }
 #endif
+    bool ensure_file(const string_t& src, const string_t& target);
     bool realpath(string_t* path);
     bool file_exists(const string_t& path);
     inline bool directory_exists(const string_t& path) { return file_exists(path); }

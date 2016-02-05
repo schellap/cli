@@ -9,6 +9,7 @@
 #include <dlfcn.h>
 #include <dirent.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 #if defined(__APPLE__)
 #include <mach-o/dyld.h>
@@ -19,6 +20,17 @@
 #elif !defined(__APPLE__)
 #define symlinkEntrypointExecutable "/proc/curproc/exe"
 #endif
+
+bool pal::ensure_file(const pal::string_t& src, const pal::string_t& dest)
+{
+    int retval = ::symlink(src.c_str(), dest.c_str());
+    if (retval != 0)
+    {
+        perror("symlink()");
+        return false;
+    }
+    return true;
+}
 
 bool pal::find_coreclr(pal::string_t* recv)
 {
