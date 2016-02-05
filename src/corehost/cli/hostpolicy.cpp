@@ -32,12 +32,16 @@ enum StatusCode
 //   "true" if path to the CoreCLR dir can be resolved in "clr_path"
 //    parameter. Else, returns "false" with "clr_path" unmodified.
 //
-bool resolve_clr_path(const arguments_t& args, pal::string_t* clr_path)
+bool resolve_clr_path(const arguments_t& args, const pal::string_t& deps_clr_dir, pal::string_t* clr_path)
 {
+    pal::string_t svc_clr = args.dotnet_runtime_servicing;
+    append_path(&svc_clr, _X("runtime"));
+    append_path(&svc_clr, _X("coreclr"));
+
     const pal::string_t* dirs[] = {
-        &args.dotnet_runtime_servicing, // DOTNET_RUNTIME_SERVICING
-        &args.app_dir,                  // APP LOCAL
-        &args.dotnet_home               // DOTNET_HOME
+        &svc_clr,                       // DOTNET_RUNTIME_SERVICING
+        &deps_clr_dir,                  // DEPS BASED CLR
+        &args.app_dir                   // APP LOCAL
     };
     for (int i = 0; i < sizeof(dirs) / sizeof(dirs[0]); ++i)
     {
@@ -45,34 +49,28 @@ bool resolve_clr_path(const arguments_t& args, pal::string_t* clr_path)
         {
             continue;
         }
-
-        // App dir should contain coreclr, so skip appending path.
-        pal::string_t cur_dir = *dirs[i];
-        if (dirs[i] != &args.app_dir)
-        {
-            append_path(&cur_dir, _X("runtime"));
-            append_path(&cur_dir, _X("coreclr"));
-        }
-
         // Found coreclr in priority order.
-        if (coreclr_exists_in_dir(cur_dir))
+        if (coreclr_exists_in_dir(*dirs[i]))
         {
+            pal::string_t cur_dir = *dirs[i];
+            pal::realpath(&cur_dir);
             clr_path->assign(cur_dir);
             return true;
         }
     }
 
     // Use platform-specific search algorithm
-    pal::string_t home_dir = args.dotnet_home;
-    if (pal::find_coreclr(&home_dir))
+    pal::string_t install_dir;
+    if (pal::find_coreclr(&install_dir))
     {
-        clr_path->assign(home_dir);
+        pal::realpath(&install_dir);
+        clr_path->assign(install_dir);
         return true;
     }
     return false;
 }
 
-int run(const arguments_t& args, const pal::string_t& clr_path)
+int run(const arguments_t& args)
 {
     // Load the deps resolver
     deps_resolver_t resolver(args);
@@ -89,6 +87,15 @@ int run(const arguments_t& args, const pal::string_t& clr_path)
         (void)pal::get_default_packages_directory(&packages_dir);
     }
     trace::info(_X("Package directory: %s"), packages_dir.empty() ? _X("not specified") : packages_dir.c_str());
+
+    pal::string_t deps_clr_dir = resolver.resolve_coreclr_dir(packages_dir, args.dotnet_packages_cache);
+
+    pal::string_t clr_path;
+    if (!resolve_clr_path(args, deps_clr_dir, &clr_path))
+    {
+        trace::error(_X("Could not resolve coreclr path"));
+        return StatusCode::CoreClrResolveFailure;
+    }
 
     probe_paths_t probe_paths;
     if (!resolver.resolve_probe_paths(args.app_dir, packages_dir, args.dotnet_packages_cache, clr_path, &probe_paths))
@@ -240,13 +247,5 @@ SHARED_API int corehost_main(const int argc, const pal::char_t* argv[])
         return StatusCode::InvalidArgFailure;
     }
 
-    // Resolve CLR path
-    pal::string_t clr_path;
-    if (!resolve_clr_path(args, &clr_path))
-    {
-        trace::error(_X("Could not resolve coreclr path"));
-        return StatusCode::CoreClrResolveFailure;
-    }
-    pal::realpath(&clr_path);
-    return run(args, clr_path);
+    return run(args);
 }

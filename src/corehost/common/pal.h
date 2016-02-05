@@ -48,14 +48,19 @@
 
 #endif
 
+
 #if defined(_WIN32)
+#define LIB_PREFIX
 #define MAKE_LIBNAME(NAME) (_X(NAME) _X(".dll"))
 #elif defined(__APPLE__)
-#define MAKE_LIBNAME(NAME) (_X("lib") _X(NAME) _X(".dylib"))
+#define LIB_PREFIX _X("lib")
+#define MAKE_LIBNAME(NAME) (LIB_PREFIX _X(NAME) _X(".dylib"))
 #else
-#define MAKE_LIBNAME(NAME) (_X("lib") _X(NAME) _X(".so"))
+#define LIB_PREFIX _X("lib")
+#define MAKE_LIBNAME(NAME) (LIB_PREFIX _X(NAME) _X(".so"))
 #endif
 
+#define LIBCORECLR_FILENAME (LIB_PREFIX _X("coreclr"))
 #define LIBCORECLR_NAME MAKE_LIBNAME("coreclr")
 
 #if !defined(PATH_MAX) && !defined(_WIN32)

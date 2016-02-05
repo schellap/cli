@@ -4,7 +4,9 @@
 #ifndef DEPS_RESOLVER_H
 #define DEPS_RESOLVER_H
 
+#include <set>
 #include <vector>
+#include <functional>
 
 #include "pal.h"
 #include "trace.h"
@@ -56,6 +58,10 @@ public:
       const pal::string_t& clr_dir,
       probe_paths_t* probe_paths);
 
+    pal::string_t resolve_coreclr_dir(
+        const pal::string_t& package_dir,
+        const pal::string_t& package_cache_dir);
+
 private:
 
     bool load();
@@ -82,6 +88,15 @@ private:
     // Populate local assemblies from app_dir listing.
     void get_local_assemblies(const pal::string_t& dir);
 
+    void add_mscorlib_to_tpa(const pal::string_t& clr_dir, std::set<pal::string_t>* items, pal::string_t* output);
+
+    // Find mscorlib and coreclr paths from the deps file.
+    typedef std::function<bool(const deps_entry_t&, pal::string_t*)> fn_entry_to_path_t;
+    bool obtain_coreclr_and_mscorlib_paths(
+        fn_entry_to_path_t entry_to_path,
+        pal::string_t* coreclr_path,
+        pal::string_t* mscorlib_path);
+
     // Servicing index to resolve serviced assembly paths.
     servicing_index_t m_svc;
 
@@ -94,6 +109,12 @@ private:
 
     // The dep file path
     pal::string_t m_deps_path;
+
+    // CoreCLR dir from deps file
+    pal::string_t m_coreclr_dir;
+
+    // Mscorlib for the CLR from deps file
+    pal::string_t m_mscorlib_path;
 
     // Is the deps file valid
     bool m_deps_valid;

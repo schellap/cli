@@ -1,8 +1,6 @@
 // Copyright (c) .NET Foundation and contributors. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-#include <set>
-#include <functional>
 #include <cassert>
 
 #include "trace.h"
@@ -104,28 +102,6 @@ void add_tpa_asset(
 
     output->push_back(PATH_SEPARATOR);
     items->insert(asset_name);
-}
-
-// -----------------------------------------------------------------------------
-// Add mscorlib from the CLR directory. Even if CLR is serviced, we should pick
-// mscorlib from the CLR directory. If mscorlib could not be found in the CLR
-// location, then leave it to the CLR to pick the right mscorlib.
-//
-void add_mscorlib_to_tpa(const pal::string_t& clr_dir, std::set<pal::string_t>* items, pal::string_t* output)
-{
-    pal::string_t mscorlib_ni_path = clr_dir + DIR_SEPARATOR + _X("mscorlib.ni.dll");
-    if (pal::file_exists(mscorlib_ni_path))
-    {
-        add_tpa_asset(_X("mscorlib"), mscorlib_ni_path, items, output);
-        return;
-    }
-
-    pal::string_t mscorlib_path = clr_dir + DIR_SEPARATOR + _X("mscorlib.dll");
-    if (pal::file_exists(mscorlib_path))
-    {
-        add_tpa_asset(_X("mscorlib"), mscorlib_ni_path, items, output);
-        return;
-    }
 }
 
 // -----------------------------------------------------------------------------
@@ -379,9 +355,9 @@ void deps_resolver_t::get_local_assemblies(const pal::string_t& dir)
     std::vector<pal::string_t> files;
     pal::readdir(dir, &files);
 
-    for (const auto& file : files)
+    for (const auto& ext : managed_ext)
     {
-        for (const auto& ext : managed_ext)
+        for (const auto& file : files)
         {
             // Nothing to do if file length is smaller than expected ext.
             if (file.length() <= ext.length())
@@ -411,6 +387,110 @@ void deps_resolver_t::get_local_assemblies(const pal::string_t& dir)
             trace::verbose(_X("Adding %s to local assembly set from %s"), file_name.c_str(), file_path.c_str());
             m_local_assemblies.emplace(file_name, file_path);
         }
+    }
+}
+
+bool deps_resolver_t::obtain_coreclr_and_mscorlib_paths(
+    fn_entry_to_path_t entry_to_path,
+    pal::string_t* coreclr,
+    pal::string_t* mscorlib)
+{
+    const deps_entry_t* coreclr_entry = nullptr;
+    const deps_entry_t* mscorlib_entry = nullptr;
+    for (const deps_entry_t& entry : m_deps_entries)
+    {
+        if (entry.asset_type == _X("native") &&
+            entry.asset_name == LIBCORECLR_FILENAME &&
+            (mscorlib_entry == nullptr || (mscorlib_entry->library_name == entry.library_name && mscorlib_entry->library_version == entry.library_version)) &&
+            entry_to_path(entry, coreclr))
+        {
+            coreclr_entry = &entry;
+            trace::verbose(_X("Found coreclr [%s] from deps entry [%s, %s]"), coreclr->c_str(), entry.library_name.c_str(), entry.library_version.c_str());
+        }
+        if (entry.asset_type == _X("runtime") &&
+            entry.asset_name == _X("mscorlib.ni") &&
+            (coreclr_entry == nullptr || (coreclr_entry->library_name == entry.library_name && coreclr_entry->library_version == entry.library_version)) &&
+            entry_to_path(entry, mscorlib))
+        {
+            mscorlib_entry = &entry;
+            trace::verbose(_X("Found mscorlib.ni [%s] from deps entry"), mscorlib->c_str(), entry.library_name.c_str(), entry.library_version.c_str());
+        }
+        if (mscorlib_entry != nullptr && coreclr_entry != nullptr)
+        {
+            return true;
+        }
+    }
+
+    trace::verbose(_X("Did not find mscorlib [%s] and coreclr [%s] together from deps entries"), mscorlib->c_str(), coreclr->c_str());
+
+    coreclr->clear();
+    mscorlib->clear();
+    return false;
+}
+
+// -----------------------------------------------------------------------------
+// Resolve coreclr directory from the deps file.
+//
+// Description:
+//    Look for CoreCLR from the dependency list in the package cache and then
+//    the packages directory.
+//
+pal::string_t deps_resolver_t::resolve_coreclr_dir(
+    const pal::string_t& package_dir,
+    const pal::string_t& package_cache_dir)
+{
+    pal::string_t coreclr;
+    pal::string_t mscorlib;
+    if (!package_cache_dir.empty())
+    {
+        (void) obtain_coreclr_and_mscorlib_paths(
+            [&package_cache_dir] (const deps_entry_t& entry, pal::string_t* path)
+            {
+                return entry.to_hash_matched_path(package_cache_dir, path);
+            },
+            &coreclr,
+            &mscorlib);
+    }
+    if (!package_dir.empty())
+    {
+        (void) obtain_coreclr_and_mscorlib_paths(
+            [&package_dir] (const deps_entry_t& entry, pal::string_t* path)
+            {
+                return entry.to_full_path(package_dir, path);
+            }, &coreclr, &mscorlib);
+    }
+    m_coreclr_dir = coreclr.empty() ? coreclr : get_directory(coreclr);
+    m_mscorlib_path = mscorlib;
+    return m_coreclr_dir;
+}
+
+// -----------------------------------------------------------------------------
+// Add mscorlib from deps entry if present along with the clr from deps.
+// Add mscorlib from the CLR directory. Even if CLR is serviced, we should pick
+// mscorlib from the CLR directory. If mscorlib could not be found in the CLR
+// location, then leave it to the CLR to pick the right mscorlib.
+//
+void deps_resolver_t::add_mscorlib_to_tpa(const pal::string_t& clr_dir, std::set<pal::string_t>* items, pal::string_t* output)
+{
+    // The CLR dir is from the deps file, so use the deps mscorlib.
+    if (clr_dir == m_coreclr_dir)
+    {
+        add_tpa_asset(_X("mscorlib"), m_mscorlib_path, items, output);
+        return;
+    }
+
+    pal::string_t mscorlib_ni_path = clr_dir + DIR_SEPARATOR + _X("mscorlib.ni.dll");
+    if (pal::file_exists(mscorlib_ni_path))
+    {
+        add_tpa_asset(_X("mscorlib"), mscorlib_ni_path, items, output);
+        return;
+    }
+
+    pal::string_t mscorlib_path = clr_dir + DIR_SEPARATOR + _X("mscorlib.dll");
+    if (pal::file_exists(mscorlib_path))
+    {
+        add_tpa_asset(_X("mscorlib"), mscorlib_ni_path, items, output);
+        return;
     }
 }
 
@@ -549,11 +629,14 @@ void deps_resolver_t::resolve_probe_dirs(
     pal::string_t candidate;
 
     // Take care of the secondary cache path
-    for (const deps_entry_t& entry : m_deps_entries)
+    if (!package_cache_dir.empty())
     {
-        if (entry.asset_type == asset_type && entry.to_hash_matched_path(package_cache_dir, &candidate))
+        for (const deps_entry_t& entry : m_deps_entries)
         {
-            add_unique_path(asset_type, action(candidate), &items, output);
+            if (entry.asset_type == asset_type && entry.to_hash_matched_path(package_cache_dir, &candidate))
+            {
+                add_unique_path(asset_type, action(candidate), &items, output);
+            }
         }
     }
 
@@ -561,11 +644,14 @@ void deps_resolver_t::resolve_probe_dirs(
     add_unique_path(asset_type, app_dir, &items, output);
 
     // Take care of the package restore path
-    for (const deps_entry_t& entry : m_deps_entries)
+    if (!package_dir.empty())
     {
-        if (entry.asset_type == asset_type && entry.to_full_path(package_dir, &candidate))
+        for (const deps_entry_t& entry : m_deps_entries)
         {
-            add_unique_path(asset_type, action(candidate), &items, output);
+            if (entry.asset_type == asset_type && entry.to_full_path(package_dir, &candidate))
+            {
+                add_unique_path(asset_type, action(candidate), &items, output);
+            }
         }
     }
 
