@@ -13,13 +13,17 @@ endif()
 include(../setup.cmake)
 
 include_directories(../../common)
+include_directories(../json/casablanca/include)
 
 # CMake does not recommend using globbing since it messes with the freshness checks
 set(SOURCES
     ../../common/trace.cpp
     ../../common/utils.cpp
-
     ../args.cpp
+    ../json/casablanca/src/json/json.cpp
+    ../json/casablanca/src/json/json_parsing.cpp
+    ../json/casablanca/src/json/json_serialization.cpp
+    ../json/casablanca/src/utilities/asyncrt_utils.cpp
     ../hostpolicy.cpp
     ../coreclr.cpp
     ../deps_resolver.cpp
@@ -30,6 +34,18 @@ if(WIN32)
     list(APPEND SOURCES ../../common/pal.windows.cpp)
 else()
     list(APPEND SOURCES ../../common/pal.unix.cpp)
+endif()
+
+add_definitions(-D_NO_ASYNCRTIMP)
+add_definitions(-D_NO_PPLXIMP)
+# Older CMake doesn't support CMAKE_CXX_STANDARD and GCC/Clang need a switch to enable C++ 11
+if(${CMAKE_CXX_COMPILER_ID} MATCHES "(Clang|GNU)")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+endif()
+
+if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+    add_definitions(-D__LINUX__)
+    target_link_libraries (corehost "dl")
 endif()
 
 add_definitions(-DCOREHOST_MAKE_DLL=1)
