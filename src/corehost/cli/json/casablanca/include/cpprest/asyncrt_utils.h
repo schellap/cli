@@ -32,7 +32,6 @@
 #include <random>
 #include <locale.h>
 
-#include "pplx/pplxtasks.h"
 #include "cpprest/details/basic_types.h"
 
 #if !defined(_WIN32) || (_MSC_VER >= 1700)
@@ -40,7 +39,7 @@
 #endif
 
 #ifndef _WIN32
-#include <boost/algorithm/string.hpp>
+//#include <boost/algorithm/string.hpp>
 #if !defined(ANDROID) && !defined(__ANDROID__) // CodePlex 269
 #include <xlocale.h>
 #endif
@@ -295,7 +294,7 @@ namespace details
     /// <param name="left">First string to compare.</param>
     /// <param name="right">Second strong to compare.</param>
     /// <returns>true if the strings are equivalent, false otherwise</returns>
-    inline bool str_icmp(const utility::string_t &left, const utility::string_t &right)
+/*    inline bool str_icmp(const utility::string_t &left, const utility::string_t &right)
     {
 #ifdef _WIN32
         return _wcsicmp(left.c_str(), right.c_str()) == 0;
@@ -303,7 +302,7 @@ namespace details
         return boost::iequals(left, right);
 #endif
     }
-
+*/
 #ifdef _WIN32
 
 /// <summary>
@@ -380,7 +379,7 @@ public:
     /// <summary>
     /// Returns the current UTC time.
     /// </summary>
-    static _ASYNCRTIMP datetime __cdecl utc_now();
+    // static _ASYNCRTIMP datetime __cdecl utc_now();
 
     /// <summary>
     /// An invalid UTC timestamp value.
@@ -391,6 +390,7 @@ public:
     /// Returns seconds since Unix/POSIX time epoch at 01-01-1970 00:00:00.
     /// If time is before epoch, utc_timestamp_invalid is returned.
     /// </summary>
+    /*
     static interval_type utc_timestamp()
     {
         const auto seconds = utc_now().to_interval() / _secondTicks;
@@ -403,6 +403,7 @@ public:
             return utc_timestamp_invalid;
         }
     }
+    */
 
     datetime() : m_interval(0)
     {
@@ -412,7 +413,7 @@ public:
     /// Creates <c>datetime</c> from a string representing time in UTC in RFC 1123 format.
     /// </summary>
     /// <returns>Returns a <c>datetime</c> of zero if not successful.</returns>
-    static _ASYNCRTIMP datetime __cdecl from_string(const utility::string_t& timestring, date_format format = RFC_1123);
+    // static _ASYNCRTIMP datetime __cdecl from_string(const utility::string_t& timestring, date_format format = RFC_1123);
 
     /// <summary>
     /// Returns a string representation of the <c>datetime</c>.
@@ -549,6 +550,7 @@ inline int operator- (datetime t1, datetime t2)
     return static_cast<int>(diff);
 }
 
+/*
 /// <summary>
 /// Nonce string generator class.
 /// </summary>
@@ -594,5 +596,5 @@ private:
     std::mt19937 m_random;
     int m_length;
 };
-
+*/
 } // namespace utility;

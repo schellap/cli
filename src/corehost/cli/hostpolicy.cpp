@@ -227,7 +227,9 @@ SHARED_API int corehost_main(const int argc, const pal::char_t* argv[])
 
     ss << U("{\"bool\":false,\"int\":10,\"float\":3.14,\"string\":\"hello\"}");
 
-    web::json::value json = web::json::value::parse(ss);
+    pal::ifstream_t fstream(_X("temp.json"));
+
+    web::json::value json = web::json::value::parse(fstream);
 
     ConsoleWrite(json);
 

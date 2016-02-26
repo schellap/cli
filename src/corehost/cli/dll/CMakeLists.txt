@@ -45,7 +45,7 @@ endif()
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
     add_definitions(-D__LINUX__)
-    target_link_libraries (corehost "dl")
+    target_link_libraries (corehost)
 endif()
 
 add_definitions(-DCOREHOST_MAKE_DLL=1)

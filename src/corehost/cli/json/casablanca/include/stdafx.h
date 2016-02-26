@@ -30,9 +30,11 @@
 #pragma clang diagnostic ignored "-Wunused-local-typedef"
 #endif
 
-#include "cpprest/details/cpprest_compat.h"
-#include "cpprest/details/basic_types.h"
+//#include "cpprest/details/cpprest_compat.h"
+//#include "cpprest/details/basic_types.h"
 
+#include <limits.h>
+#include <cstring>
 #ifdef _WIN32
 #ifdef CPPREST_TARGET_XP
 #include <winsdkver.h>
@@ -109,11 +111,11 @@
 #include "cpprest/version.h"
 
 // streams
-#include "cpprest/streams.h"
-#include "cpprest/astreambuf.h"
-#include "cpprest/rawptrstream.h"
-#include "cpprest/interopstream.h"
-#include "cpprest/producerconsumerstream.h"
+//#include "cpprest/streams.h"
+//#include "cpprest/astreambuf.h"
+//#include "cpprest/rawptrstream.h"
+//#include "cpprest/interopstream.h"
+//#include "cpprest/producerconsumerstream.h"
 
 // json
 #include "cpprest/json.h"
