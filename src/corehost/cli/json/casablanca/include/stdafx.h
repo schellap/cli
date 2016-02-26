@@ -74,15 +74,15 @@
 #include "pthread.h"
 #if (defined(ANDROID) || defined(__ANDROID__))
 // Boost doesn't recognize libstdcpp on top of clang correctly
-#include "boost/config.hpp"
-#include "boost/config/stdlib/libstdcpp3.hpp"
+// #include "boost/config.hpp"
+// #include "boost/config/stdlib/libstdcpp3.hpp"
 #undef BOOST_NO_CXX11_SMART_PTR
 #undef BOOST_NO_CXX11_NULLPTR
 #endif
-#include "boost/thread/mutex.hpp"
-#include "boost/thread/condition_variable.hpp"
-#include "boost/date_time/posix_time/posix_time_types.hpp"
-#include "boost/bind/bind.hpp"
+// #include "boost/thread/mutex.hpp"
+// #include "boost/thread/condition_variable.hpp"
+// #include "boost/date_time/posix_time/posix_time_types.hpp"
+// #include "boost/bind/bind.hpp"
 #include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -105,7 +105,7 @@
 #include <memory>
 #include <thread>
 
-#include "pplx/pplxtasks.h"
+// #include "pplx/pplxtasks.h"
 #include "cpprest/version.h"
 
 // streams
@@ -119,42 +119,42 @@
 #include "cpprest/json.h"
 
 // uri
-#include "cpprest/base_uri.h"
-#include "cpprest/details/uri_parser.h"
+//#include "cpprest/base_uri.h"
+//#include "cpprest/details/uri_parser.h"
 
 // utilities
-#include "cpprest/asyncrt_utils.h"
-#include "cpprest/details/web_utilities.h"
+//#include "cpprest/asyncrt_utils.h"
+//#include "cpprest/details/web_utilities.h"
 
 // http
-#include "cpprest/http_headers.h"
-#include "cpprest/http_msg.h"
-#include "cpprest/http_client.h"
-#include "cpprest/details/http_helpers.h"
+//#include "cpprest/http_headers.h"
+//#include "cpprest/http_msg.h"
+//#include "cpprest/http_client.h"
+//#include "cpprest/details/http_helpers.h"
 
 // oauth
 #if !defined(_WIN32) || _WIN32_WINNT >= _WIN32_WINNT_VISTA
-#include "cpprest/oauth1.h"
+//#include "cpprest/oauth1.h"
 #endif
-#include "cpprest/oauth2.h"
+//#include "cpprest/oauth2.h"
 
 // websockets
-#include "cpprest/ws_client.h"
-#include "cpprest/ws_msg.h"
+//#include "cpprest/ws_client.h"
+//#include "cpprest/ws_msg.h"
 
 #if !defined(__cplusplus_winrt)
 #if _WIN32_WINNT >= _WIN32_WINNT_VISTA
-#include "cpprest/details/http_server.h"
-#include "cpprest/http_listener.h"
-#include "cpprest/details/http_server_api.h"
+//#include "cpprest/details/http_server.h"
+//#include "cpprest/http_listener.h"
+//#include "cpprest/details/http_server_api.h"
 #endif // _WIN32_WINNT >= _WIN32_WINNT_VISTA
 
 #ifdef _WIN32
 #if _WIN32_WINNT >= _WIN32_WINNT_VISTA
-#include "cpprest/details/http_server_httpsys.h"
+//#include "cpprest/details/http_server_httpsys.h"
 #endif // _WIN32_WINNT >= _WIN32_WINNT_VISTA
 #else
-#include "cpprest/details/http_server_asio.h"
+//#include "cpprest/details/http_server_asio.h"
 #endif
 
 #endif
