@@ -29,6 +29,7 @@ namespace Microsoft.DotNet.Cli.Build
             "dotnet-build.Tests",
             "dotnet-pack.Tests",
             "dotnet-resgen.Tests",
+            "dotnet-run.Tests",
             "Microsoft.DotNet.Cli.Utils.Tests",
             "Microsoft.DotNet.Compiler.Common.Tests",
             "Microsoft.DotNet.ProjectModel.Tests",
@@ -114,10 +115,10 @@ namespace Microsoft.DotNet.Cli.Build
         public static BuildTargetResult BuildTestAssetProjects(BuildTargetContext c)
         {
             var dotnet = DotNetCli.Stage2;
+            var nobuildFileName = ".noautobuild";
             string testProjectsRoot = Path.Combine(c.BuildContext.BuildDirectory, "TestAssets", "TestProjects");
-            List<string> exclusionList = new List<string> { Path.Combine(testProjectsRoot, "CompileFail", "project.json") };
             var projects = Directory.GetFiles(testProjectsRoot, "project.json", SearchOption.AllDirectories)
-                                    .Where(p => !exclusionList.Any(e => e.Contains(p)));
+                                    .Where(p => !File.Exists(Path.Combine(Path.GetDirectoryName(p), nobuildFileName)));
 
             foreach (var project in projects)
             {

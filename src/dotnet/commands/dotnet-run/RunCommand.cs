@@ -61,6 +61,7 @@ namespace Microsoft.DotNet.Tools.Run
             }
 
             var rids = PlatformServices.Default.Runtime.GetAllCandidateRuntimeIdentifiers();
+
             if (Framework == null)
             {
                 var defaultFrameworks = new[]
@@ -69,14 +70,25 @@ namespace Microsoft.DotNet.Tools.Run
                     FrameworkConstants.FrameworkIdentifiers.NetStandardApp,
                 };
 
-                var contexts = ProjectContext.CreateContextForEachFramework(Project, null, rids);
-                _context = contexts.FirstOrDefault(c =>
-                    defaultFrameworks.Contains(c.TargetFramework.Framework) && !string.IsNullOrEmpty(c.RuntimeIdentifier));
+                var contexts = ProjectContext.CreateContextForEachFramework(Project, null);
 
-                if (_context == null)
+                ProjectContext context;
+                if (contexts.Count() == 1)
                 {
-                    throw new InvalidOperationException($"Couldn't find default target with framework: {string.Join(",", defaultFrameworks)}");
+                    context = contexts.Single();
                 }
+                else
+                {
+                    context = contexts.FirstOrDefault(c => defaultFrameworks.Contains(c.TargetFramework.Framework));
+                    if (context == null)
+                    {
+                        throw new InvalidOperationException($"Couldn't find target to run. Possible causes:" + Environment.NewLine +
+                            "1. No project.lock.json file or restore failed - run `dotnet restore`" + Environment.NewLine +
+                            $"2. project.lock.json has multiple targets none of which is in default list ({string.Join(", " , defaultFrameworks)})");
+                    }
+                }
+
+                _context = context.CreateRuntimeContext(rids);
             }
             else
             {

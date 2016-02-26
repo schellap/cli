@@ -3,7 +3,7 @@
 
 namespace Microsoft.Extensions.Testing.Abstractions
 {
-    public interface ITestDiscoverySink
+    public interface ITestDiscoverySink : ITestSink
     {
         void SendTestFound(Test test);
     }
