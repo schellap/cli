@@ -216,7 +216,7 @@ void ConsoleWrite(const web::json::value& json)
         auto k = iter->first;
         auto v = iter->second;
 
-        std::cout << k << _X(" : ") << v << _X(" (") << GetJsonValueTypeName(v.type()) << _X(")") << std::endl;
+        std::wcout << k << _X(" : ") << v << _X(" (") << GetJsonValueTypeName(v.type()) << _X(")") << std::endl;
     }
 }
 SHARED_API int corehost_main(const int argc, const pal::char_t* argv[])
