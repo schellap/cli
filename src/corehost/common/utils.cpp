@@ -52,6 +52,13 @@ pal::string_t get_executable(const pal::string_t& filename)
     return result;
 }
 
+pal::string_t get_filename_without_extension(const pal::string_t& path)
+{
+    size_t name_pos = path.find_last_of(_X("/\\"));
+    size_t dot_pos = path.rfind(_X("."), pal::string_t::npos, path.size() - name_pos);
+    return path.substr(name_pos + 1, dot_pos);
+}
+
 pal::string_t get_filename(const pal::string_t& path)
 {
     // Find the last dir separator

@@ -167,6 +167,7 @@ bool deps_json_t::load(const pal::string_t& deps_path)
     }
 
     std::unordered_map<pal::string_t, std::array<std::vector<pal::string_t>, 3>> runtime_assets;
+    std::array<pal::char_t*, 3> types = { _X("runtime"), _X("resources"), _X("native") };
 
     const web::json::value& json = web::json::value::parse(file);
     const web::json::object& targets = json.at(_X("targets")).as_object();
@@ -179,7 +180,6 @@ bool deps_json_t::load(const pal::string_t& deps_path)
 
         for (const auto& package : target.second.as_object())
         {
-            pal::string_t id_version = package.first;
             const web::json::object& properties = package.second.as_object();
 
             if (properties.at(_X("type")).as_string() != _X("package"))
@@ -187,31 +187,52 @@ bool deps_json_t::load(const pal::string_t& deps_path)
                 continue;
             }
 
-            for (const auto& property : properties)
+            for (int i = 0; i < types.size(); ++i)
             {
-                pal::char_t* types[] = { _X("runtime"), _X("resources"), _X("native") };
-                for (const auto& type : types)
+                auto iter = properties.find(types[i]);
+                if (iter != properties.end())
                 {
-                    if (type == property.first)
+                    for (const auto& file : iter->second.as_object())
                     {
-                        for (const auto& file : property.second.as_object())
-                        {
-                            int index = &type - &types[0];
-                            runtime_assets[id_version][index].push_back(file.first);
-                        }
+                        runtime_assets[package.first][i].push_back(file.first);
                     }
                 }
             }
         }
     }
 
-    std::unordered_map<pal::string_t, deps_entry_t> deps_entries;
     const web::json::object& libraries = json.at(_X("libraries")).as_object();
     for (const auto& library : libraries)
     {
-        if (runtime_assets.find(library.first) != runtime_assets.end())
+        auto iter = runtime_assets.find(library.first);
+        if (iter == runtime_assets.end())
         {
-            //
+            continue;
+        }
+        if (library.second.at(_X("type")).as_string() != _X("package"))
+        {
+            continue;
+        }
+        const auto& properties = library.second.as_object();
+        auto hash = properties.find(_X("sha512"));
+        auto serviceable = properties.find(_X("serviceable"));
+        for (int i = 0; i < types.size(); ++i)
+        {
+            for (const auto& file : iter->second[i])
+            {
+                deps_entry_t entry;
+                size_t pos = library.first.find(_X("/"));
+                entry.library_name = library.first.substr(0, pos);
+                entry.library_version = library.first.substr(pos + 1);
+                entry.library_hash = hash != properties.end() ? hash->second.as_string() : _X("");
+                entry.library_type = _X("package");
+                entry.asset_name = get_filename_without_extension(file);
+                entry.asset_type = types[i];
+                entry.relative_path = file;
+                entry.is_serviceable = (serviceable == properties.end()) ||
+                    (pal::strcasecmp(serviceable->second.as_string().c_str(), _X("false")) != 0);
+                m_deps_entries.push_back(entry);
+            }
         }
     }
 }
