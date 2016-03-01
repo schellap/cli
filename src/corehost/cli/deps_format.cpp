@@ -143,7 +143,8 @@ bool deps_text_t::load(const pal::string_t& deps_path)
         trace::verbose(_X("Added deps entry [%d] [%s, %s, %s]"), m_deps_entries.size() - 1, entry.library_name.c_str(), entry.library_version.c_str(), entry.relative_path.c_str());
     }
     
-    return true;
+    deps_json_t json(_X("H:\\code\\deps.json"));
+    return json.is_valid();
 }
 
 
@@ -187,14 +188,16 @@ bool deps_json_t::load(const pal::string_t& deps_path)
                 continue;
             }
 
-            for (int i = 0; i < types.size(); ++i)
+            for (const auto& property : properties)
             {
-                auto iter = properties.find(types[i]);
-                if (iter != properties.end())
+                for (int i = 0; i < types.size(); ++i)
                 {
-                    for (const auto& file : iter->second.as_object())
+                    if (property.first == types[i])
                     {
-                        runtime_assets[package.first][i].push_back(file.first);
+                        for (const auto& file : property.second.as_object())
+                        {
+                            runtime_assets[package.first][i].push_back(file.first);
+                        }
                     }
                 }
             }
@@ -218,19 +221,29 @@ bool deps_json_t::load(const pal::string_t& deps_path)
         auto serviceable = properties.find(_X("serviceable"));
         for (int i = 0; i < types.size(); ++i)
         {
-            for (const auto& file : iter->second[i])
+            for (const auto& rel_path : iter->second[i])
             {
+                auto asset_name = get_filename_without_ext(rel_path);
+                if (ends_with(asset_name, _X(".ni")))
+                {
+                    asset_name = strip_file_ext(asset_name);
+                }
+
                 deps_entry_t entry;
                 size_t pos = library.first.find(_X("/"));
                 entry.library_name = library.first.substr(0, pos);
                 entry.library_version = library.first.substr(pos + 1);
                 entry.library_hash = hash != properties.end() ? hash->second.as_string() : _X("");
                 entry.library_type = _X("package");
-                entry.asset_name = get_filename_without_extension(file);
+                entry.asset_name = asset_name;
                 entry.asset_type = types[i];
-                entry.relative_path = file;
+                entry.relative_path = rel_path;
                 entry.is_serviceable = (serviceable == properties.end()) ||
                     (pal::strcasecmp(serviceable->second.as_string().c_str(), _X("false")) != 0);
+
+                // TODO: Deps file does not follow spec. It uses '\\', should use '/'
+                replace_char(&entry.relative_path, _X('\\'), _X('/'));
+
                 m_deps_entries.push_back(entry);
             }
         }

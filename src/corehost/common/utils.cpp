@@ -52,23 +52,45 @@ pal::string_t get_executable(const pal::string_t& filename)
     return result;
 }
 
-pal::string_t get_filename_without_extension(const pal::string_t& path)
+pal::string_t strip_file_ext(const pal::string_t& path)
 {
-    size_t name_pos = path.find_last_of(_X("/\\"));
-    size_t dot_pos = path.rfind(_X("."), pal::string_t::npos, path.size() - name_pos);
+    if (path.empty())
+    {
+        return path;
+    }
+    return path.substr(0, path.rfind(_X('.')));
+}
+
+pal::string_t get_filename_without_ext(const pal::string_t& path, const pal::char_t dir_sep)
+{
+    if (path.empty())
+    {
+        return path;
+    }
+
+    size_t name_pos = path.find_last_of(dir_sep);
+    if (name_pos == pal::string_t::npos)
+    {
+        return path.substr(0, path.find_last_of(_X('.')));
+    }
+    size_t dot_pos = path.find_last_of(_X('.'), name_pos);
     return path.substr(name_pos + 1, dot_pos);
 }
 
 pal::string_t get_filename(const pal::string_t& path)
 {
-    // Find the last dir separator
-    auto path_sep = path.find_last_of(DIR_SEPARATOR);
-    if (path_sep == pal::string_t::npos)
+    if (path.empty())
     {
-        return pal::string_t(path);
+        return path;
     }
 
-    return path.substr(path_sep + 1);
+    auto name_pos = path.find_last_of(DIR_SEPARATOR);
+    if (name_pos == pal::string_t::npos)
+    {
+        return path;
+    }
+
+    return path.substr(name_pos + 1);
 }
 
 pal::string_t get_directory(const pal::string_t& path)

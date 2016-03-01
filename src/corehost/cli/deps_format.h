@@ -12,10 +12,16 @@
 class deps_json_t
 {
 public:
+    deps_json_t(const pal::string_t& deps_path)
+        : m_valid(load(deps_path))
+    {
+    }
     bool load(const pal::string_t& deps_path);
-    const std::vector<deps_entry_t>& get_entries();
+    bool is_valid() { return m_valid; }
+    const std::vector<deps_entry_t>& get_entries() { return m_deps_entries; }
 private:
     std::vector<deps_entry_t> m_deps_entries;
+    bool m_valid;
 };
 
 class deps_text_t
