@@ -63,7 +63,8 @@ void CreateException(const Token &tk, const utility::string_t &message)
 {
     utility::ostringstream_t os;
     os << _XPLATSTR("* Line ") << tk.start.m_line << _XPLATSTR(", Column ") << tk.start.m_column << _XPLATSTR(" Syntax error: ") << message;
-    throw web::json::json_exception(os.str().c_str());
+    utility::string_t osStr = os.str();
+    throw web::json::json_exception(osStr.c_str());
 }
 
 template <typename Token>
@@ -774,7 +775,7 @@ inline bool JSON_Parser<CharType>::handle_unescape_char(Token &token)
             }
 
             // Construct the character based on the decoded number
-			convert_append_unicode_code_unit(token, static_cast<utf16char>(decoded));
+            convert_append_unicode_code_unit(token, static_cast<utf16char>(decoded));
 
             return true;
         }
