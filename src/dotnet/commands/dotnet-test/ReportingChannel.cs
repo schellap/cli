@@ -114,6 +114,11 @@ namespace Microsoft.DotNet.Tools.Test
                     var message = JsonConvert.DeserializeObject<Message>(rawMessage);
 
                     MessageReceived?.Invoke(this, message);
+
+                    if (ShouldStopListening(message))
+                    {
+                        break;
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -127,9 +132,18 @@ namespace Microsoft.DotNet.Tools.Test
             }
         }
 
+        private static bool ShouldStopListening(Message message)
+        {
+            return message.MessageType == TestMessageTypes.TestRunnerTestCompleted ||
+                message.MessageType == TestMessageTypes.TestSessionTerminate;
+        }
+
         public void Dispose()
         {
-            Socket.Dispose();
+            if (Socket != null)
+            {
+                Socket.Dispose();
+            }
         }
     }
 }
