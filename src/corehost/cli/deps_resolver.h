@@ -50,8 +50,6 @@ public:
 
 private:
 
-    void track_coreclr_entry(const deps_entry_t& entry);
-
     // Resolve order for TPA lookup.
     void resolve_tpa_list(
         const pal::string_t& app_dir,

@@ -98,23 +98,18 @@ bool deps_resolver_t::load()
     for (int i = 0; i < m_deps.get_entries().size(); ++i)
     {
         const deps_entry_t& entry = m_deps.get_entries()[i];
-        track_coreclr_entry(entry);
+        if (entry.asset_type == _X("native") &&
+            entry.asset_name == LIBCORECLR_FILENAME)
+        {
+            m_coreclr_index = i;
+            trace::verbose(_X("Found coreclr from deps entry [%d] [%s, %s, %s]"),
+                m_coreclr_index,
+                entry.library_name.c_str(),
+                entry.library_version.c_str(),
+                entry.relative_path.c_str());
+        }
     }
     return true;
-}
-
-void deps_resolver_t::track_coreclr_entry(const deps_entry_t& entry)
-{
-    if (entry.asset_type == _X("native") &&
-        entry.asset_name == LIBCORECLR_FILENAME)
-    {
-        m_coreclr_index = m_deps.get_entries().size() - 1;
-        trace::verbose(_X("Found coreclr from deps entry [%d] [%s, %s, %s]"),
-            m_coreclr_index,
-            entry.library_name.c_str(),
-            entry.library_version.c_str(),
-            entry.relative_path.c_str());
-    }
 }
 
 // -----------------------------------------------------------------------------

@@ -5,6 +5,10 @@
 #include "utils.h"
 #include "trace.h"
 #include "cpprest/json.h"
+#include <unordered_set>
+#include <tuple>
+#include <array>
+#include <iterator>
 
 namespace
 {
@@ -162,11 +166,41 @@ bool deps_json_t::load(const pal::string_t& deps_path)
         return false;
     }
 
-    web::json::value json = web::json::value::parse(file);
-
-    for (auto iter = json.as_object().cbegin(); iter != json.as_object().cend(); ++iter)
+    const web::json::value& json = web::json::value::parse(file);
+    const web::json::array& targets = json.at(_X("targets")).as_array();
+    web::json::array::const_iterator iter = std::find_if(targets.cbegin(), targets.cend(), [](const web::json::value& value) {
+        return value.as_string().rfind(_X("/")) != utility::string_t::npos;
+    });
+    if (iter == targets.end())
     {
-        auto k = iter->first;
-        auto v = iter->second;
+        return false;
+    }
+
+    const web::json::object& packages = iter->as_object();
+    std::unordered_map<pal::string_t, std::array<std::vector<pal::string_t>, 3>> runtime_assets;
+
+    for (const auto& package : packages)
+    {
+        pal::string_t id_version = package.first;
+        const web::json::object& properties = package.second.as_object();
+
+        for (const auto& property : properties)
+        {
+            pal::string_t name = property.first;
+            const web::json::object& files = property.second.as_object();
+
+            pal::char_t* types[] = { _X("runtime"), _X("resources"), _X("native") };           
+            for (const auto& type : types)
+            {
+                if (type == name)
+                {
+                    for (const auto& file : files)
+                    {
+                        int index = &type - &types[0];
+                        runtime_assets[id_version][index].push_back(file.first);
+                    }
+                }
+            }
+        }
     }
 }
