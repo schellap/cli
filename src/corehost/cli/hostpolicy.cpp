@@ -189,49 +189,11 @@ int run(const arguments_t& args)
     return exit_code;
 }
 
-
-pal::string_t GetJsonValueTypeName(const web::json::value::value_type& type)
-{
-    switch (type)
-    {
-    case web::json::value::value_type::Array:
-        return _X("Array");
-    case web::json::value::value_type::Boolean:
-        return _X("Boolean");
-    case web::json::value::value_type::Null:
-        return _X("Null");
-    case web::json::value::value_type::Number:
-        return _X("Number");
-    case web::json::value::value_type::Object:
-        return _X("Object");
-    case web::json::value::value_type::String:
-        return _X("String");
-    }
-}
-
-void ConsoleWrite(const web::json::value& json)
-{
-    for (auto iter = json.as_object().cbegin(); iter != json.as_object().cend(); ++iter)
-    {
-        auto k = iter->first;
-        auto v = iter->second;
-
-        std::cout << k << _X(" : ") << v << _X(" (") << GetJsonValueTypeName(v.type()) << _X(")") << std::endl;
-    }
-}
 SHARED_API int corehost_main(const int argc, const pal::char_t* argv[])
 {
     trace::setup();
 
     pal::stringstream_t ss;
-
-    ss << U("{\"bool\":false,\"int\":10,\"float\":3.14,\"string\":\"hello\"}");
-
-    pal::ifstream_t fstream(_X("temp.json"));
-
-    web::json::value json = web::json::value::parse(fstream);
-
-    ConsoleWrite(json);
 
     // Take care of arguments
     arguments_t args;

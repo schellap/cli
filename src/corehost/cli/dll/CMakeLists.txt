@@ -27,6 +27,8 @@ set(SOURCES
     ../hostpolicy.cpp
     ../coreclr.cpp
     ../deps_resolver.cpp
+    ../deps_format.cpp
+    ../deps_entry.cpp
     ../servicing_index.cpp)
 
 

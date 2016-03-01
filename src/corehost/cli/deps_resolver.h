@@ -8,27 +8,9 @@
 
 #include "pal.h"
 #include "trace.h"
-
+#include "deps_format.h"
+#include "deps_entry.h"
 #include "servicing_index.h"
-
-struct deps_entry_t
-{
-    pal::string_t library_type;
-    pal::string_t library_name;
-    pal::string_t library_version;
-    pal::string_t library_hash;
-    pal::string_t asset_type;
-    pal::string_t asset_name;
-    pal::string_t relative_path;
-    bool is_serviceable;
-
-    // Given a "base" dir, yield the relative path in the package layout.
-    bool to_full_path(const pal::string_t& root, pal::string_t* str) const;
-
-    // Given a "base" dir, yield the relative path in the package layout only if
-    // the hash matches contents of the hash file.
-    bool to_hash_matched_path(const pal::string_t& root, pal::string_t* str) const;
-};
 
 // Probe paths to be resolved for ordering
 struct probe_paths_t
@@ -45,11 +27,14 @@ public:
         : m_svc(args.dotnet_servicing)
         , m_runtime_svc(args.dotnet_runtime_servicing)
         , m_coreclr_index(-1)
+        , m_deps(args.deps_path)
     {
-        m_deps_valid = parse_deps_file(args);
+        load();
     }
 
-    bool valid() { return m_deps_valid; }
+    bool load();
+
+    bool valid() { return m_deps.is_valid(); }
 
     bool resolve_probe_paths(
       const pal::string_t& app_dir,
@@ -65,9 +50,7 @@ public:
 
 private:
 
-    bool load();
-
-    bool parse_deps_file(const arguments_t& args);
+    void track_coreclr_entry(const deps_entry_t& entry);
 
     // Resolve order for TPA lookup.
     void resolve_tpa_list(
@@ -99,14 +82,11 @@ private:
     // order of their extensions.
     std::unordered_map<pal::string_t, pal::string_t> m_local_assemblies;
 
-    // Entries in the dep file
-    std::vector<deps_entry_t> m_deps_entries;
-
     // Special entry for coreclr in the deps entries
     int m_coreclr_index;
 
     // The dep file path
-    pal::string_t m_deps_path;
+    deps_text_t m_deps;
 
     // Is the deps file valid
     bool m_deps_valid;
