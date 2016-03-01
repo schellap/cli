@@ -166,41 +166,52 @@ bool deps_json_t::load(const pal::string_t& deps_path)
         return false;
     }
 
-    const web::json::value& json = web::json::value::parse(file);
-    const web::json::array& targets = json.at(_X("targets")).as_array();
-    web::json::array::const_iterator iter = std::find_if(targets.cbegin(), targets.cend(), [](const web::json::value& value) {
-        return value.as_string().rfind(_X("/")) != utility::string_t::npos;
-    });
-    if (iter == targets.end())
-    {
-        return false;
-    }
-
-    const web::json::object& packages = iter->as_object();
     std::unordered_map<pal::string_t, std::array<std::vector<pal::string_t>, 3>> runtime_assets;
 
-    for (const auto& package : packages)
+    const web::json::value& json = web::json::value::parse(file);
+    const web::json::object& targets = json.at(_X("targets")).as_object();
+    for (const auto& target : targets)
     {
-        pal::string_t id_version = package.first;
-        const web::json::object& properties = package.second.as_object();
-
-        for (const auto& property : properties)
+        if (target.first.rfind(_X("/")) == utility::string_t::npos)
         {
-            pal::string_t name = property.first;
-            const web::json::object& files = property.second.as_object();
+            continue;
+        }
 
-            pal::char_t* types[] = { _X("runtime"), _X("resources"), _X("native") };           
-            for (const auto& type : types)
+        for (const auto& package : target.second.as_object())
+        {
+            pal::string_t id_version = package.first;
+            const web::json::object& properties = package.second.as_object();
+
+            if (properties.at(_X("type")).as_string() != _X("package"))
             {
-                if (type == name)
+                continue;
+            }
+
+            for (const auto& property : properties)
+            {
+                pal::char_t* types[] = { _X("runtime"), _X("resources"), _X("native") };
+                for (const auto& type : types)
                 {
-                    for (const auto& file : files)
+                    if (type == property.first)
                     {
-                        int index = &type - &types[0];
-                        runtime_assets[id_version][index].push_back(file.first);
+                        for (const auto& file : property.second.as_object())
+                        {
+                            int index = &type - &types[0];
+                            runtime_assets[id_version][index].push_back(file.first);
+                        }
                     }
                 }
             }
+        }
+    }
+
+    std::unordered_map<pal::string_t, deps_entry_t> deps_entries;
+    const web::json::object& libraries = json.at(_X("libraries")).as_object();
+    for (const auto& library : libraries)
+    {
+        if (runtime_assets.find(library.first) != runtime_assets.end())
+        {
+            //
         }
     }
 }
