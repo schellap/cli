@@ -9,7 +9,7 @@
 #include <array>
 #include <iterator>
 
-const std::array<pal::char_t*, 3> deps_json_t::s_known_types = { _X("runtime"), _X("resources"), _X("native") };
+const std::array<pal::char_t*, deps_json_t::NUM_ASSET_TYPES> deps_json_t::s_known_asset_types = { _X("runtime"), _X("resources"), _X("native") };
 
 namespace
 {
@@ -148,10 +148,9 @@ bool deps_text_t::load(const pal::string_t& deps_path)
     return json.is_valid();
 }
 
-
-bool deps_json_t::load_portable(const json_value& json, const pal::string_t& target_name)
+bool deps_json_t::load_portable(const json_value& json, const pal::string_t& target_name, const rid_fallback_graph_t& rid_fallback_graph)
 {
-    std::unordered_map<pal::string_t, std::array<std::unordered_map<pal::string_t, pal::string_t>, 3>> runtime_assets;
+    portable_assets_t runtime_assets;
 
     for (const auto& package : json.at(_X("targets")).at(target_name).as_object())
     {
@@ -161,15 +160,43 @@ bool deps_json_t::load_portable(const json_value& json, const pal::string_t& tar
         {
             continue;
         }
-        if (target)
-
+        const auto& asset_types = iter->second.as_object();
+        for (int i = 0; i < s_known_asset_types.size(); ++i)
+        {
+            const auto& iter = asset_types.find(s_known_asset_types[i]);
+            if (iter != asset_types.end())
+            {
+                for (const auto& file : iter->second.as_object())
+                {
+                    const auto& rid = file.second.as_object().at(_X("rid")).as_string();
+                    runtime_assets[package.first][rid][i].push_back(file.first);
+                }
+            }
+        }
     }
+
+    if (!perform_rid_fallback(&runtime_assets, rid_fallback_graph))
+    {
+        return false;
+    }
+}
+
+bool deps_json_t::perform_rid_fallback(portable_assets_t* portable_assets, const rid_fallback_graph_t& rid_fallback_graph)
+{
+    pal::string_t host_rid = get_own_rid();
+    for (auto& package : *portable_assets)
+    {
+        pal::string_t cur_rid = host_rid;
+        std::max_element(package.second.begin(), package.second.end(), [](const auto& a, const auto& b) {
+            return index(a) > index(b);
+        });
+    }
+    return false;
 }
 
 bool deps_json_t::load_standalone(const json_value& json, const pal::string_t& target_name)
 {
-    std::unordered_map<pal::string_t, std::array<std::vector<pal::string_t>, 3>> runtime_assets;
-
+    standalone_assets_t standalone_assets;
     for (const auto& package : json.at(_X("targets")).at(target_name).as_object())
     {
         if (package.second.at(_X("type")).as_string() != _X("package"))
@@ -177,16 +204,15 @@ bool deps_json_t::load_standalone(const json_value& json, const pal::string_t& t
             continue;
         }
 
-        for (const auto& property : package.second.as_object())
+        const auto& asset_types = package.second.as_object();
+        for (int i = 0; i < s_known_asset_types.size(); ++i)
         {
-            for (int i = 0; i < s_known_types.size(); ++i)
+            const auto& iter = asset_types.find(s_known_asset_types[i]);
+            if (iter != asset_types.end())
             {
-                if (property.first == s_known_types[i])
+                for (const auto& file : iter->second.as_object())
                 {
-                    for (const auto& file : property.second.as_object())
-                    {
-                        runtime_assets[package.first][i].push_back(file.first);
-                    }
+                    standalone_assets[package.first][i].push_back(file.first);
                 }
             }
         }
@@ -199,9 +225,8 @@ bool deps_json_t::load_standalone(const json_value& json, const pal::string_t& t
         {
             continue;
         }
-
-        auto iter = runtime_assets.find(library.first);
-        if (iter == runtime_assets.end())
+        const auto iter = standalone_assets.find(library.first);
+        if (iter == standalone_assets.end())
         {
             continue;
         }
@@ -211,7 +236,7 @@ bool deps_json_t::load_standalone(const json_value& json, const pal::string_t& t
         const pal::string_t& hash = properties.at(_X("sha512")).as_string();
         bool serviceable = properties.at(_X("serviceable")).as_bool();
 
-        for (int i = 0; i < s_known_types.size(); ++i)
+        for (int i = 0; i < s_known_asset_types.size(); ++i)
         {
             for (const auto& rel_path : iter->second[i])
             {
@@ -228,7 +253,7 @@ bool deps_json_t::load_standalone(const json_value& json, const pal::string_t& t
                 entry.library_type = _X("package");
                 entry.library_hash = hash;
                 entry.asset_name = asset_name;
-                entry.asset_type = s_known_types[i];
+                entry.asset_type = s_known_asset_types[i];
                 entry.relative_path = rel_path;
                 entry.is_serviceable = serviceable;
 
@@ -239,13 +264,28 @@ bool deps_json_t::load_standalone(const json_value& json, const pal::string_t& t
             }
         }
     }
+
+    const auto& json_object = json.as_object();
+    const auto iter = json_object.find(_X("runtimes"));
+    if (iter != json_object.end())
+    {
+        for (const auto& rid : iter->second.as_object())
+        {
+            auto& vec = m_rid_fallback_graph[rid.first];
+            for (const auto& fallback : rid.second.as_array())
+            {
+                vec.push_back(fallback.as_string());
+            }
+        }
+    }
+    return true;
 }
 
 // -----------------------------------------------------------------------------
 // Load the deps file and parse its "entry" lines which contain the "fields" of
 // the entry. Populate an array of these entries.
 //
-bool deps_json_t::load(const pal::string_t& deps_path)
+bool deps_json_t::load(const pal::string_t& deps_path, const rid_fallback_graph_t& rid_fallback_graph)
 {
     // If file doesn't exist, then assume parsed.
     if (!pal::file_exists(deps_path))
@@ -266,5 +306,5 @@ bool deps_json_t::load(const pal::string_t& deps_path)
     bool portable = runtime_target.at(_X("portable")).as_bool();
     const pal::string_t& name = runtime_target.at(_X("name")).as_string();
 
-    return (portable) ? load_portable(json, name) : load_standalone(json, name);
+    return (portable) ? load_portable(json, name, rid_fallback_graph) : load_standalone(json, name);
 }

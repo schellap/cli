@@ -113,3 +113,14 @@ void replace_char(pal::string_t* path, pal::char_t match, pal::char_t repl)
         (*path)[pos] = repl;
     }
 }
+
+
+pal::string_t get_own_rid()
+{
+#if defined(COREHOST_RID)
+    return COREHOST_RID;
+#else
+    return _X("win10-x64");
+    // TODO: #error "Cannot build the host without knowing host's root RID"
+#endif
+}
