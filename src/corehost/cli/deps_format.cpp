@@ -186,10 +186,25 @@ bool deps_json_t::perform_rid_fallback(portable_assets_t* portable_assets, const
     pal::string_t host_rid = get_own_rid();
     for (auto& package : *portable_assets)
     {
-        pal::string_t cur_rid = host_rid;
-        std::max_element(package.second.begin(), package.second.end(), [](const auto& a, const auto& b) {
-            return index(a) > index(b);
-        });
+		pal::string_t matched_rid = package.second.count(host_rid) ? host_rid : _X("");
+		if (matched_rid.empty())
+		{
+			if (rid_fallback_graph.count(host_rid) == 0)
+			{
+				trace::error(_X("Did not find fallback rids for package %s for the host rid %s"), package.first.c_str(), host_rid.c_str());
+				return false;
+			}
+			const auto& fallback_rids = rid_fallback_graph.find(host_rid)->second;
+			auto iter = std::find_if(fallback_rids.begin(), fallback_rids.end(), [&package](const pal::string_t& rid) {
+				return package.second.count(rid);
+			});
+			if (iter == fallback_rids.end() || (*iter).empty())
+			{
+				trace::error(_X("Did not find a matching fallback rid for package %s for the host rid %s"), package.first.c_str(), host_rid.c_str());
+				return false;
+			}
+			matched_rid = *iter;
+		}
     }
     return false;
 }
