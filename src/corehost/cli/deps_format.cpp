@@ -4,11 +4,12 @@
 #include "deps_format.h"
 #include "utils.h"
 #include "trace.h"
-#include "cpprest/json.h"
 #include <unordered_set>
 #include <tuple>
 #include <array>
 #include <iterator>
+
+const std::array<pal::char_t*, 3> deps_json_t::s_known_types = { _X("runtime"), _X("resources"), _X("native") };
 
 namespace
 {
@@ -148,6 +149,98 @@ bool deps_text_t::load(const pal::string_t& deps_path)
 }
 
 
+bool deps_json_t::load_portable(const json_value& json, const pal::string_t& target_name)
+{
+    std::unordered_map<pal::string_t, std::array<std::unordered_map<pal::string_t, pal::string_t>, 3>> runtime_assets;
+
+    for (const auto& package : json.at(_X("targets")).at(target_name).as_object())
+    {
+        const auto& targets = package.second.as_object();
+        auto iter = targets.find(_X("subtargets"));
+        if (iter == targets.end())
+        {
+            continue;
+        }
+        if (target)
+
+    }
+}
+
+bool deps_json_t::load_standalone(const json_value& json, const pal::string_t& target_name)
+{
+    std::unordered_map<pal::string_t, std::array<std::vector<pal::string_t>, 3>> runtime_assets;
+
+    for (const auto& package : json.at(_X("targets")).at(target_name).as_object())
+    {
+        if (package.second.at(_X("type")).as_string() != _X("package"))
+        {
+            continue;
+        }
+
+        for (const auto& property : package.second.as_object())
+        {
+            for (int i = 0; i < s_known_types.size(); ++i)
+            {
+                if (property.first == s_known_types[i])
+                {
+                    for (const auto& file : property.second.as_object())
+                    {
+                        runtime_assets[package.first][i].push_back(file.first);
+                    }
+                }
+            }
+        }
+    }
+
+    const auto& libraries = json.at(_X("libraries")).as_object();
+    for (const auto& library : libraries)
+    {
+        if (library.second.at(_X("type")).as_string() != _X("package"))
+        {
+            continue;
+        }
+
+        auto iter = runtime_assets.find(library.first);
+        if (iter == runtime_assets.end())
+        {
+            continue;
+        }
+
+        const auto& properties = library.second.as_object();
+
+        const pal::string_t& hash = properties.at(_X("sha512")).as_string();
+        bool serviceable = properties.at(_X("serviceable")).as_bool();
+
+        for (int i = 0; i < s_known_types.size(); ++i)
+        {
+            for (const auto& rel_path : iter->second[i])
+            {
+                auto asset_name = get_filename_without_ext(rel_path);
+                if (ends_with(asset_name, _X(".ni")))
+                {
+                    asset_name = strip_file_ext(asset_name);
+                }
+
+                deps_entry_t entry;
+                size_t pos = library.first.find(_X("/"));
+                entry.library_name = library.first.substr(0, pos);
+                entry.library_version = library.first.substr(pos + 1);
+                entry.library_type = _X("package");
+                entry.library_hash = hash;
+                entry.asset_name = asset_name;
+                entry.asset_type = s_known_types[i];
+                entry.relative_path = rel_path;
+                entry.is_serviceable = serviceable;
+
+                // TODO: Deps file does not follow spec. It uses '\\', should use '/'
+                replace_char(&entry.relative_path, _X('\\'), _X('/'));
+
+                m_deps_entries.push_back(entry);
+            }
+        }
+    }
+}
+
 // -----------------------------------------------------------------------------
 // Load the deps file and parse its "entry" lines which contain the "fields" of
 // the entry. Populate an array of these entries.
@@ -167,85 +260,11 @@ bool deps_json_t::load(const pal::string_t& deps_path)
         return false;
     }
 
-    std::unordered_map<pal::string_t, std::array<std::vector<pal::string_t>, 3>> runtime_assets;
-    std::array<pal::char_t*, 3> types = { _X("runtime"), _X("resources"), _X("native") };
+    const auto& json = json_value::parse(file);
 
-    const web::json::value& json = web::json::value::parse(file);
-    const web::json::object& targets = json.at(_X("targets")).as_object();
-    for (const auto& target : targets)
-    {
-        if (target.first.rfind(_X("/")) == utility::string_t::npos)
-        {
-            continue;
-        }
+    const auto& runtime_target = json.at(_X("runtimeTarget")).as_object();
+    bool portable = runtime_target.at(_X("portable")).as_bool();
+    const pal::string_t& name = runtime_target.at(_X("name")).as_string();
 
-        for (const auto& package : target.second.as_object())
-        {
-            const web::json::object& properties = package.second.as_object();
-
-            if (properties.at(_X("type")).as_string() != _X("package"))
-            {
-                continue;
-            }
-
-            for (const auto& property : properties)
-            {
-                for (int i = 0; i < types.size(); ++i)
-                {
-                    if (property.first == types[i])
-                    {
-                        for (const auto& file : property.second.as_object())
-                        {
-                            runtime_assets[package.first][i].push_back(file.first);
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    const web::json::object& libraries = json.at(_X("libraries")).as_object();
-    for (const auto& library : libraries)
-    {
-        auto iter = runtime_assets.find(library.first);
-        if (iter == runtime_assets.end())
-        {
-            continue;
-        }
-        if (library.second.at(_X("type")).as_string() != _X("package"))
-        {
-            continue;
-        }
-        const auto& properties = library.second.as_object();
-        auto hash = properties.find(_X("sha512"));
-        auto serviceable = properties.find(_X("serviceable"));
-        for (int i = 0; i < types.size(); ++i)
-        {
-            for (const auto& rel_path : iter->second[i])
-            {
-                auto asset_name = get_filename_without_ext(rel_path);
-                if (ends_with(asset_name, _X(".ni")))
-                {
-                    asset_name = strip_file_ext(asset_name);
-                }
-
-                deps_entry_t entry;
-                size_t pos = library.first.find(_X("/"));
-                entry.library_name = library.first.substr(0, pos);
-                entry.library_version = library.first.substr(pos + 1);
-                entry.library_hash = hash != properties.end() ? hash->second.as_string() : _X("");
-                entry.library_type = _X("package");
-                entry.asset_name = asset_name;
-                entry.asset_type = types[i];
-                entry.relative_path = rel_path;
-                entry.is_serviceable = (serviceable == properties.end()) ||
-                    (pal::strcasecmp(serviceable->second.as_string().c_str(), _X("false")) != 0);
-
-                // TODO: Deps file does not follow spec. It uses '\\', should use '/'
-                replace_char(&entry.relative_path, _X('\\'), _X('/'));
-
-                m_deps_entries.push_back(entry);
-            }
-        }
-    }
+    return (portable) ? load_portable(json, name) : load_standalone(json, name);
 }
