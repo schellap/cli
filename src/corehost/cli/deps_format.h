@@ -42,6 +42,10 @@ private:
     bool load_portable(const json_value& json, const pal::string_t& target_name, const rid_fallback_graph_t& rid_fallback_graph);
     bool load(const pal::string_t& deps_path, const rid_fallback_graph_t& rid_fallback_graph);
 
+    void reconcile_libraries_with_targets(const json_value& json,
+        const std::function<bool(const pal::string_t&)>& library_exists_fn,
+        const std::function<const std::vector<pal::string_t>&(const pal::string_t&, int)>& get_rel_paths_by_asset_type_fn);
+
     bool perform_rid_fallback(portable_assets_t* portable_assets, const rid_fallback_graph_t& rid_fallback_graph);
 
     static const std::array<pal::char_t*, NUM_ASSET_TYPES> s_known_asset_types;

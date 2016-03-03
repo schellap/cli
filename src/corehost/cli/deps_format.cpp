@@ -8,6 +8,8 @@
 #include <tuple>
 #include <array>
 #include <iterator>
+#include <cassert>
+#include <functional>
 
 const std::array<pal::char_t*, deps_json_t::NUM_ASSET_TYPES> deps_json_t::s_known_asset_types = { _X("runtime"), _X("resources"), _X("native") };
 
@@ -150,7 +152,7 @@ bool deps_text_t::load(const pal::string_t& deps_path)
 
 bool deps_json_t::load_portable(const json_value& json, const pal::string_t& target_name, const rid_fallback_graph_t& rid_fallback_graph)
 {
-    portable_assets_t runtime_assets;
+    portable_assets_t portable_targets;
 
     for (const auto& package : json.at(_X("targets")).at(target_name).as_object())
     {
@@ -169,16 +171,27 @@ bool deps_json_t::load_portable(const json_value& json, const pal::string_t& tar
                 for (const auto& file : iter->second.as_object())
                 {
                     const auto& rid = file.second.as_object().at(_X("rid")).as_string();
-                    runtime_assets[package.first][rid][i].push_back(file.first);
+                    portable_targets[package.first][rid][i].push_back(file.first);
                 }
             }
         }
     }
 
-    if (!perform_rid_fallback(&runtime_assets, rid_fallback_graph))
+    if (!perform_rid_fallback(&portable_targets, rid_fallback_graph))
     {
         return false;
     }
+
+    reconcile_libraries_with_targets(
+        json,
+        [&portable_targets](const pal::string_t& package) -> bool {
+            return portable_targets.find(package) != portable_targets.end();
+        },
+        [&portable_targets](const pal::string_t& package, int type_index) -> const std::vector<pal::string_t>& {
+            return portable_targets[package].begin()->second[type_index];
+        });
+
+    return true;
 }
 
 bool deps_json_t::perform_rid_fallback(portable_assets_t* portable_assets, const rid_fallback_graph_t& rid_fallback_graph)
@@ -205,13 +218,21 @@ bool deps_json_t::perform_rid_fallback(portable_assets_t* portable_assets, const
 			}
 			matched_rid = *iter;
 		}
+        assert(!matched_rid.empty());
+        for (auto iter = package.second.begin(); iter != package.second.end(); ++iter)
+        {
+            if (iter->first != matched_rid)
+            {
+                package.second.erase(iter);
+            }
+        }
     }
-    return false;
+    return true;
 }
 
 bool deps_json_t::load_standalone(const json_value& json, const pal::string_t& target_name)
 {
-    standalone_assets_t standalone_assets;
+    standalone_assets_t standalone_targets;
     for (const auto& package : json.at(_X("targets")).at(target_name).as_object())
     {
         if (package.second.at(_X("type")).as_string() != _X("package"))
@@ -227,12 +248,42 @@ bool deps_json_t::load_standalone(const json_value& json, const pal::string_t& t
             {
                 for (const auto& file : iter->second.as_object())
                 {
-                    standalone_assets[package.first][i].push_back(file.first);
+                    standalone_targets[package.first][i].push_back(file.first);
                 }
             }
         }
     }
 
+    reconcile_libraries_with_targets(
+        json,
+        [&standalone_targets](const pal::string_t& package) -> bool {
+            return standalone_targets.count(package);
+        },
+        [&standalone_targets](const pal::string_t& package, int type_index) -> const std::vector<pal::string_t>& {
+            return standalone_targets[package][type_index];
+        });
+
+    const auto& json_object = json.as_object();
+    const auto iter = json_object.find(_X("runtimes"));
+    if (iter != json_object.end())
+    {
+        for (const auto& rid : iter->second.as_object())
+        {
+            auto& vec = m_rid_fallback_graph[rid.first];
+            for (const auto& fallback : rid.second.as_array())
+            {
+                vec.push_back(fallback.as_string());
+            }
+        }
+    }
+    return true;
+}
+
+void deps_json_t::reconcile_libraries_with_targets(
+    const json_value& json,
+    const std::function<bool(const pal::string_t&)>& library_exists_fn,
+    const std::function<const std::vector<pal::string_t>&(const pal::string_t&, int)>& get_rel_paths_by_asset_type_fn)
+{
     const auto& libraries = json.at(_X("libraries")).as_object();
     for (const auto& library : libraries)
     {
@@ -240,8 +291,7 @@ bool deps_json_t::load_standalone(const json_value& json, const pal::string_t& t
         {
             continue;
         }
-        const auto iter = standalone_assets.find(library.first);
-        if (iter == standalone_assets.end())
+        if (library_exists_fn(library.first))
         {
             continue;
         }
@@ -253,7 +303,7 @@ bool deps_json_t::load_standalone(const json_value& json, const pal::string_t& t
 
         for (int i = 0; i < s_known_asset_types.size(); ++i)
         {
-            for (const auto& rel_path : iter->second[i])
+            for (const auto& rel_path : get_rel_paths_by_asset_type_fn(library.first, i))
             {
                 auto asset_name = get_filename_without_ext(rel_path);
                 if (ends_with(asset_name, _X(".ni")))
@@ -279,21 +329,6 @@ bool deps_json_t::load_standalone(const json_value& json, const pal::string_t& t
             }
         }
     }
-
-    const auto& json_object = json.as_object();
-    const auto iter = json_object.find(_X("runtimes"));
-    if (iter != json_object.end())
-    {
-        for (const auto& rid : iter->second.as_object())
-        {
-            auto& vec = m_rid_fallback_graph[rid.first];
-            for (const auto& fallback : rid.second.as_array())
-            {
-                vec.push_back(fallback.as_string());
-            }
-        }
-    }
-    return true;
 }
 
 // -----------------------------------------------------------------------------
@@ -315,11 +350,18 @@ bool deps_json_t::load(const pal::string_t& deps_path, const rid_fallback_graph_
         return false;
     }
 
-    const auto& json = json_value::parse(file);
+    try
+    {
+        const auto& json = json_value::parse(file);
 
-    const auto& runtime_target = json.at(_X("runtimeTarget")).as_object();
-    bool portable = runtime_target.at(_X("portable")).as_bool();
-    const pal::string_t& name = runtime_target.at(_X("name")).as_string();
+        const auto& runtime_target = json.at(_X("runtimeTarget")).as_object();
+        bool portable = runtime_target.at(_X("portable")).as_bool();
+        const pal::string_t& name = runtime_target.at(_X("name")).as_string();
 
-    return (portable) ? load_portable(json, name, rid_fallback_graph) : load_standalone(json, name);
+        return (portable) ? load_portable(json, name, rid_fallback_graph) : load_standalone(json, name);
+    }
+    catch (...)
+    {
+        return false;
+    }
 }
