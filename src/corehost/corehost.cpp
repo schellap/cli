@@ -12,11 +12,14 @@ namespace
 {
 enum StatusCode
 {
-    Success                   = 0,
-    CoreHostLibLoadFailure    = 0x41,
-    CoreHostLibMissingFailure = 0x42,
-    CoreHostEntryPointFailure = 0x43,
-    CoreHostCurExeFindFailure = 0x44,
+    Success                    = 0,
+    CoreHostLibLoadFailure     = 0x41,
+    CoreHostLibMissingFailure  = 0x42,
+    CoreHostEntryPointFailure  = 0x43,
+    CoreHostCurExeFindFailure  = 0x44,
+	CoreHostResolveModeFailure = 0x45,
+	CoreHostMuxFailure         = 0x46,
+	// Only append here, do not modify existing ones.
 };
 
 typedef int (*corehost_main_fn) (const int argc, const pal::char_t* argv[]);
@@ -98,6 +101,44 @@ HostMode detect_operating_mode(const int argc, const pal::char_t* argv[], pal::s
     }
 }
 
+struct SemVer
+{
+	int major;
+	int minor;
+	int patch;
+	pal::string_t ext;
+public:
+	SemVer(int major, int minor, int patch, const pal::string_t& ext)
+		: major(major)
+		, minor(minor)
+		, patch(patch)
+		, ext(ext)
+	{
+	}
+
+	bool operator ==(const SemVer& b) const
+	{
+		return major == b.major && minor == b.minor && patch == b.patch && ext == b.ext;
+	}
+	bool operator !=(const SemVer& b) const
+	{
+		return !operator ==(b);
+	}
+	bool operator <(const SemVer& b) const
+	{
+		return major < b.major || minor < b.minor || patch < b.minor || ext < b.ext;
+	}
+};
+
+class FxMuxer
+{
+public:
+	FxMuxer(int argc, const pal::char_t* argv[])
+	{
+	}
+
+	bool resolve_path(pal::string_t* resolved_path);
+};
 StatusCode resolve_hostpolicy_dir(const int argc, const pal::char_t* argv[], pal::string_t* resolved_path)
 {
     pal::string_t own_path, own_dir, own_name;
@@ -105,19 +146,27 @@ StatusCode resolve_hostpolicy_dir(const int argc, const pal::char_t* argv[], pal
 
     switch (mode)
     {
+	default:
+	case Invalid:
+		return StatusCode::CoreHostResolveModeFailure;
+
     case Muxer:
-        // do muxing
+		{
+			FxMuxer mux(argc, argv);
+			if (mux.resolve_path(resolved_path))
+			{
+				return StatusCode::Success;
+			}
+			return StatusCode::CoreHostMuxFailure;
+		}
         break;
 
-    case Framework:
-    {
-        if (hostpolicy_exists_in_dir(own_dir, resolved_path))
-        {
-            return StatusCode::Success;
-        }
-        return StatusCode::CoreHostLibMissingFailure;
-    }
-    break;
+	case Framework:
+		if (hostpolicy_exists_in_dir(own_dir, resolved_path))
+		{
+	        return StatusCode::Success;
+		}
+		return StatusCode::CoreHostLibMissingFailure;
 
     case Standalone:
         {
@@ -142,8 +191,6 @@ StatusCode resolve_hostpolicy_dir(const int argc, const pal::char_t* argv[], pal
             }
             return StatusCode::CoreHostLibMissingFailure;
         }
-        break;
-
     }
 }
 
