@@ -2,9 +2,9 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 #include "trace.h"
-#include "pal.h"
 #include "utils.h"
 #include "libhost.h"
+#include "corehost.h"
 
 extern int corehost_main(const int argc, const pal::char_t* argv[]);
 
@@ -21,6 +21,20 @@ enum StatusCode
 
 typedef int (*corehost_main_fn) (const int argc, const pal::char_t* argv[]);
 
+
+bool hostpolicy_exists_in_dir(const pal::string_t& lib_dir, pal::string_t* p_host_path)
+{
+    pal::string_t host_path = lib_dir;
+    append_path(&host_path, LIBHOST_NAME);
+
+    if (!pal::file_exists(host_path))
+    {
+        return false;
+    }
+    *p_host_path = host_path;
+    return true;
+}
+
 // -----------------------------------------------------------------------------
 // Load the corehost library from the path specified
 //
@@ -35,11 +49,8 @@ typedef int (*corehost_main_fn) (const int argc, const pal::char_t* argv[]);
 //
 StatusCode load_host_lib(const pal::string_t& lib_dir, pal::dll_t* h_host, corehost_main_fn* main_fn)
 {
-    pal::string_t host_path = lib_dir;
-    append_path(&host_path, LIBHOST_NAME);
-
-    // Missing library
-    if (!pal::file_exists(host_path))
+    pal::string_t host_path;
+    if (!hostpolicy_exists_in_dir(lib_dir, &host_path))
     {
         return StatusCode::CoreHostLibMissingFailure;
     }
@@ -61,6 +72,81 @@ StatusCode load_host_lib(const pal::string_t& lib_dir, pal::dll_t* h_host, coreh
 
 }; // end of anonymous namespace
 
+HostMode detect_operating_mode(const int argc, const pal::char_t* argv[], pal::string_t* own_path, pal::string_t* own_dir, pal::string_t* own_name)
+{
+    // Get the full name of the application
+    if (!pal::get_own_executable_path(own_path) || !pal::realpath(own_path))
+    {
+        trace::error(_X("Failed to locate current executable"));
+        own_path->clear();
+        return Invalid;
+    }
+
+    own_name->assign(get_filename(*own_path));
+    own_dir->assign(get_directory(*own_path));
+
+    if (coreclr_exists_in_dir(*own_dir))
+    {
+        pal::string_t own_deps_json = *own_dir;
+        pal::string_t own_deps_filename = strip_file_ext(*own_name) + _X(".deps.json");
+        append_path(&own_deps_json, own_deps_filename.c_str());
+        return (pal::file_exists(own_deps_json)) ? Standalone : Framework;
+    }
+    else
+    {
+        return Muxer;
+    }
+}
+
+StatusCode resolve_hostpolicy_dir(const int argc, const pal::char_t* argv[], pal::string_t* resolved_path)
+{
+    pal::string_t own_path, own_dir, own_name;
+    HostMode mode = detect_operating_mode(argc, argv, &own_path, &own_dir, &own_name);
+
+    switch (mode)
+    {
+    case Muxer:
+        // do muxing
+        break;
+
+    case Framework:
+    {
+        if (hostpolicy_exists_in_dir(own_dir, resolved_path))
+        {
+            return StatusCode::Success;
+        }
+        return StatusCode::CoreHostLibMissingFailure;
+    }
+    break;
+
+    case Standalone:
+        {
+#ifdef COREHOST_PACKAGE_SERVICING
+            pal::string_t svc_dir;
+            if (pal::getenv(_X("DOTNET_SERVICING"), &svc_dir))
+            {
+                pal::string_t path = svc_dir;
+                append_path(&path, COREHOST_PACKAGE_NAME);
+                append_path(&path, COREHOST_PACKAGE_VERSION);
+                append_path(&path, COREHOST_PACKAGE_COREHOST_RELATIVE_DIR);
+
+                if (hostpolicy_exists_in_dir(path, resolved_path)
+                {
+                    return StatusCode::Success;
+                }
+            }
+#endif
+            if (hostpolicy_exists_in_dir(own_dir, resolved_path))
+            {
+                return StatusCode::Success;
+            }
+            return StatusCode::CoreHostLibMissingFailure;
+        }
+        break;
+
+    }
+}
+
 #if defined(_WIN32)
 int __cdecl wmain(const int argc, const pal::char_t* argv[])
 #else
@@ -71,44 +157,8 @@ int main(const int argc, const pal::char_t* argv[])
 
     pal::dll_t corehost;
 
-#ifdef COREHOST_PACKAGE_SERVICING
-    // No custom host asked, so load the corehost if serviced first.
-    pal::string_t svc_dir;
-    if (pal::getenv(_X("DOTNET_SERVICING"), &svc_dir))
-    {
-        pal::string_t path = svc_dir;
-        append_path(&path, COREHOST_PACKAGE_NAME);
-        append_path(&path, COREHOST_PACKAGE_VERSION);
-        append_path(&path, COREHOST_PACKAGE_COREHOST_RELATIVE_DIR);
-
-        corehost_main_fn host_main;
-        StatusCode code = load_host_lib(path, &corehost, &host_main);
-        if (code != StatusCode::Success)
-        {
-            trace::info(_X("Failed to load host library from servicing dir: %s; Status=%08X"), path.c_str(), code);
-            // Ignore all errors for the servicing case, and proceed to the next step.
-        }
-        else
-        {
-            trace::info(_X("Calling host entrypoint from library at servicing dir %s"), path.c_str());
-            return host_main(argc, argv);
-        }
-    }
-#endif
-
-    // Get current path to look for the library app locally.
-    pal::string_t own_path;
-    if (!pal::get_own_executable_path(&own_path) || !pal::realpath(&own_path))
-    {
-        trace::error(_X("Failed to locate current executable"));
-        return StatusCode::CoreHostCurExeFindFailure;
-    }
-
-    // Local load of the corehost library.
-    auto own_dir = get_directory(own_path);
-
     corehost_main_fn host_main;
-    StatusCode code = load_host_lib(own_dir, &corehost, &host_main);
+    StatusCode code = load_host_lib(resolve_hostpolicy_path(argc, argv), &corehost, &host_main);
     switch (code)
     {
     // Success, call the entrypoint.
@@ -122,3 +172,4 @@ int main(const int argc, const pal::char_t* argv[])
         return code;
     }
 }
+

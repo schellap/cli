@@ -14,6 +14,7 @@ include(setup.cmake)
 
 set (CMAKE_CXX_STANDARD 11)
 
+include_directories(..)
 include_directories(../common)
 include_directories(.)
 

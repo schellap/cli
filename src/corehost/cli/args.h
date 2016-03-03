@@ -10,15 +10,6 @@
 
 static const pal::string_t s_depsArgPrefix = _X("--depsfile:");
 
-
-enum HostMode
-{
-	Invalid = 0,
-	Muxer,
-	Standalone,
-	Framework
-};
-
 struct arguments_t
 {
     pal::string_t own_path;

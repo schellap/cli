@@ -32,28 +32,12 @@ void display_help()
 
 bool parse_arguments(const int argc, const pal::char_t* argv[], arguments_t& args)
 {
-    // Get the full name of the application
-    if (!pal::get_own_executable_path(&args.own_path) || !pal::realpath(&args.own_path))
+    pal::string_t own_dir, own_name;
+
+    if ((args.operating_mode = detect_operating_mode(argc, argv, &args.own_path, &own_dir, &own_name)) == Invalid)
     {
-        trace::error(_X("Failed to locate current executable"));
         return false;
     }
-
-    auto own_name = get_filename(args.own_path);
-    auto own_dir = get_directory(args.own_path);
-
-	pal::string_t coreclr = own_dir;
-	if (coreclr_exists_in_dir(own_dir))
-	{
-		pal::string_t own_deps_json = own_dir;
-		pal::string_t own_deps_filename = strip_file_ext(own_name) + _X(".json");
-		append_path(&own_deps_json, own_deps_filename.c_str());
-		args.operating_mode = (pal::file_exists(own_deps_json)) ? Standalone : Framework;
-	}
-	else
-	{
-		args.operating_mode = Muxer;
-	}
 
     if (own_name.compare(HOST_EXE_NAME) == 0)
     {
