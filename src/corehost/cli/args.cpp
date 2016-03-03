@@ -42,6 +42,19 @@ bool parse_arguments(const int argc, const pal::char_t* argv[], arguments_t& arg
     auto own_name = get_filename(args.own_path);
     auto own_dir = get_directory(args.own_path);
 
+	pal::string_t coreclr = own_dir;
+	if (coreclr_exists_in_dir(own_dir))
+	{
+		pal::string_t own_deps_json = own_dir;
+		pal::string_t own_deps_filename = strip_file_ext(own_name) + _X(".json");
+		append_path(&own_deps_json, own_deps_filename.c_str());
+		args.operating_mode = (pal::file_exists(own_deps_json)) ? Standalone : Framework;
+	}
+	else
+	{
+		args.operating_mode = Muxer;
+	}
+
     if (own_name.compare(HOST_EXE_NAME) == 0)
     {
         // corerun mode. First argument is managed app

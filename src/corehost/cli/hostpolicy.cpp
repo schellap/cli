@@ -189,24 +189,9 @@ int run(const arguments_t& args)
     return exit_code;
 }
 
-SHARED_API int detect_host_mode()
-{
-    enum HostMode
-    {
-        Invalid = 0,
-        Muxer,
-        Standalone,
-        Framework
-    };
-
-
-}
-
 SHARED_API int corehost_main(const int argc, const pal::char_t* argv[])
 {
     trace::setup();
-
-    pal::stringstream_t ss;
 
     // Take care of arguments
     arguments_t args;

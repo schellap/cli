@@ -10,6 +10,15 @@
 
 static const pal::string_t s_depsArgPrefix = _X("--depsfile:");
 
+
+enum HostMode
+{
+	Invalid = 0,
+	Muxer,
+	Standalone,
+	Framework
+};
+
 struct arguments_t
 {
     pal::string_t own_path;
@@ -21,6 +30,8 @@ struct arguments_t
     pal::string_t nuget_packages;
     pal::string_t dotnet_packages_cache;
     pal::string_t managed_application;
+
+	HostMode operating_mode;
 
     int app_argc;
     const pal::char_t** app_argv;
