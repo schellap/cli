@@ -31,6 +31,35 @@ bool pal::find_coreclr(pal::string_t* recv)
     return false;
 }
 
+
+bool pal::getcwd(pal::string_t* recv)
+{
+    recv->clear();
+
+    pal::char_t buf[MAX_PATH];
+    DWORD result = GetCurrentDirectoryW(MAX_PATH, buf);
+    if (result < MAX_PATH)
+    {
+        recv->assign(buf);
+        return true;
+    }
+    else if (result != 0)
+    {
+        std::vector<pal::char_t> str;
+        str.resize(result);
+        result = GetCurrentDirectoryW(str.size(), str.data());
+        assert(result <= str.size());
+        if (result != 0)
+        {
+            recv->assign(str.data());
+            return true;
+        }
+    }
+    assert(result == 0);
+    trace::error(_X("Failed to obtain working directory, HRESULT: 0x%X"), HRESULT_FROM_WIN32(GetLastError()));
+    return false;
+}
+
 bool pal::load_library(const char_t* path, dll_t* dll)
 {
     *dll = ::LoadLibraryW(path);
