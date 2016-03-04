@@ -26,7 +26,7 @@ sem_ver_t::sem_ver_t(int major, int minor, int patch)
 
 bool sem_ver_t::operator ==(const sem_ver_t& b) const
 {
-    return compare(*this, b, true) == 0;
+    return compare(*this, b) == 0;
 }
 
 bool sem_ver_t::operator !=(const sem_ver_t& b) const
