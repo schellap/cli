@@ -93,7 +93,7 @@ namespace pal
     typedef HMODULE dll_t;
     typedef FARPROC proc_t;
 
-    bool pal::getcwd(pal::string_t* recv);
+    bool getcwd(pal::string_t* recv);
 
     inline int strcmp(const char_t* str1, const char_t* str2) { return ::wcscmp(str1, str2); }
     inline int strcasecmp(const char_t* str1, const char_t* str2) { return ::_wcsicmp(str1, str2); }
@@ -128,7 +128,7 @@ namespace pal
     typedef void* dll_t;
     typedef void* proc_t;
 
-    bool pal::getcwd(pal::string_t* recv);
+    bool getcwd(pal::string_t* recv);
 
     inline int strcmp(const char_t* str1, const char_t* str2) { return ::strcmp(str1, str2); }
     inline int strcasecmp(const char_t* str1, const char_t* str2) { return ::strcasecmp(str1, str2); }
