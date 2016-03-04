@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 #include "corehost.h"
+#include "semver.h"
 
 class fx_muxer_t
 {
@@ -10,34 +11,6 @@ public:
 	StatusCode execute();
 private:
     bool resolve_framework_dir(pal::string_t* resolved_path) const;
-};
-
-
-struct fx_ver_t
-{
-    int major;
-    int minor;
-    int patch;
-    pal::string_t pre;
-public:
-    fx_ver_t(int major, int minor, int patch, const pal::string_t& pre)
-        : major(major)
-        , minor(minor)
-        , patch(patch)
-        , pre(pre)
-    {
-    }
-    fx_ver_t(int major, int minor, int patch)
-        : fx_ver_t(major, minor, patch, _X(""))
-    {
-    }
-
-    static bool parse(const pal::string_t& ver, fx_ver_t* fx_ver);
-
-    bool operator ==(const fx_ver_t& b) const;
-    bool operator !=(const fx_ver_t& b) const;
-    bool operator <(const fx_ver_t& b) const;
-    bool operator >(const fx_ver_t& b) const;
-    static int compare(const fx_ver_t&a, const fx_ver_t& b);
+	bool determine_sdk_dotnet_path(const pal::string_t& own_dir, pal::string_t* cli_sdk);
 };
 

@@ -1,12 +1,26 @@
 // Copyright (c) .NET Foundation and contributors. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+#include <cassert>
+#include "pal.h"
+#include "semver.h"
+
 sem_ver_t::sem_ver_t(int major, int minor, int patch, const pal::string_t& pre, const pal::string_t& build)
     : major(major)
     , minor(minor)
     , patch(patch)
     , pre(pre)
     , build(build)
+{
+}
+
+sem_ver_t::sem_ver_t(int major, int minor, int patch, const pal::string_t& pre)
+	: sem_ver_t(major, minor, patch, pre, _X(""))
+{
+}
+
+sem_ver_t::sem_ver_t(int major, int minor, int patch)
+	: sem_ver_t(major, minor, patch, _X(""), _X(""))
 {
 }
 
@@ -84,7 +98,7 @@ bool sem_ver_t::parse(const pal::string_t& ver, sem_ver_t* sem_ver)
     {
         size_t pre_start = pat_sep + 1;
         size_t pre_sep = ver.find(pre_start, _X('+'));
-        pre = std::stoi(ver.substr(pre_start, pre_sep - pre_start))
+		pre = std::stoi(ver.substr(pre_start, pre_sep - pre_start));
         if (pre_sep == pal::string_t::npos)
         {
             *sem_ver = sem_ver_t(major, minor, patch, pre);
