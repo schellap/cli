@@ -4,8 +4,8 @@
 class fx_muxer_t
 {
 public:
-    static bool create_fx_muxer(int argc, const pal::char_t* argv[]);
-    bool resolve_path(pal::string_t* resolved_path);
+    fx_muxer_t(const pal::char_t* first_arg, const pal::string_t& install_dir);
+    bool resolve_framework_dir(pal::string_t* resolved_path) const;
 };
 
 

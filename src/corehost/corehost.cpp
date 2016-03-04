@@ -76,7 +76,7 @@ StatusCode load_host_lib(const pal::string_t& lib_dir, pal::dll_t* h_host, coreh
 
 }; // end of anonymous namespace
 
-HostMode detect_operating_mode(const int argc, const pal::char_t* argv[], pal::string_t* own_path, pal::string_t* own_dir, pal::string_t* own_name)
+HostMode detect_operating_mode(pal::string_t* own_path, pal::string_t* own_dir, pal::string_t* own_name)
 {
     // Get the full name of the application
     if (!pal::get_own_executable_path(own_path) || !pal::realpath(own_path))
@@ -102,27 +102,13 @@ HostMode detect_operating_mode(const int argc, const pal::char_t* argv[], pal::s
     }
 }
 
-StatusCode resolve_hostpolicy_dir(const int argc, const pal::char_t* argv[], pal::string_t* resolved_path)
+StatusCode resolve_hostpolicy_dir(HostMode mode, const pal::string_t& own_dir, pal::string_t* resolved_path)
 {
-    pal::string_t own_path, own_dir, own_name;
-    HostMode mode = detect_operating_mode(argc, argv, &own_path, &own_dir, &own_name);
-
     switch (mode)
     {
 	default:
 	case Invalid:
 		return StatusCode::CoreHostResolveModeFailure;
-
-    case Muxer:
-		{
-			fx_muxer_t mux(argc, argv);
-			if (mux.resolve_path(resolved_path))
-			{
-				return StatusCode::Success;
-			}
-			return StatusCode::CoreHostMuxFailure;
-		}
-        break;
 
 	case Framework:
 		if (hostpolicy_exists_in_dir(own_dir, resolved_path))
@@ -157,6 +143,22 @@ StatusCode resolve_hostpolicy_dir(const int argc, const pal::char_t* argv[], pal
     }
 }
 
+
+int load_hostpolicy_and_execute(const pal::string_t& resolved_dir, const int argc, const pal::char_t* argv[])
+{
+    pal::dll_t corehost;
+    corehost_main_fn host_main;
+    StatusCode code = load_host_lib(resolved_dir, &corehost, &host_main);
+    switch (code)
+    {
+    case StatusCode::Success:
+        return host_main(argc, argv);
+
+    default:
+        return code;
+    }
+}
+
 #if defined(_WIN32)
 int __cdecl wmain(const int argc, const pal::char_t* argv[])
 #else
@@ -165,21 +167,59 @@ int main(const int argc, const pal::char_t* argv[])
 {
     trace::setup();
 
-    pal::dll_t corehost;
-
-    corehost_main_fn host_main;
-    StatusCode code = load_host_lib(resolve_hostpolicy_path(argc, argv), &corehost, &host_main);
-    switch (code)
+    StatusCode code;
+    pal::string_t own_path, own_dir, own_name, resolved_dir;
+    HostMode mode = detect_operating_mode(&own_path, &own_dir, &own_name);
+    if (mode == Muxer)
     {
-    // Success, call the entrypoint.
-    case StatusCode::Success:
-        trace::info(_X("Calling host entrypoint from library at own dir %s"), own_dir.c_str());
-        return host_main(argc, argv);
+        if (argc < 2)
+        {
+            trace::error(_X("Usage: dotnet.exe [managed.dll | command]"));
+            return CoreHostResolveModeFailure;
+        }
 
-    // Some other fatal error including StatusCode::CoreHostLibMissingFailure.
-    default:
-        trace::error(_X("Error loading the host library from own dir: %s; Status=%08X"), own_dir.c_str(), code);
-        return code;
+        fx_muxer_t muxer(argv[1], own_dir);
+        if (muxer.is_command_mode())
+        {
+            const pal::string_t& dotnet = muxer.dotnet_from_sdk();
+
+            fx_muxer_t cmd_host(dotnet, own_dir);
+
+            assert(!cmd_host.is_command_mode());
+
+            cmd_host.resolve_framework_dir(&resolved_dir);
+            if (resolved_dir.empty())
+            {
+                return StatusCode::CoreHostMuxFailure;
+            }
+
+            std::vector<pal::char_t*> new_argv;
+            setup_args_for_command_mode(&new_argv);
+            //memcpy(&dotnet_argv.data()[1], argv, argc);
+            //dotnet_argv[0] = dotnet_argv[1];
+            //dotnet_argv[1] = dotnet_dll;
+
+
+            return load_hostpolicy_and_execute(resolved_dir, new_argv.size(), new_argv.data());
+        }
+        else
+        {
+            muxer.resolve_framework_dir(&resolved_dir);
+            if (resolved_dir.empty())
+            {
+                return StatusCode::CoreHostMuxFailure;
+            }
+            return load_hostpolicy_and_execute(resolved_dir, argc, argv);
+        }
+    }
+    else
+    {
+        code = resolve_hostpolicy_dir(mode, own_dir, &resolved_dir);
+        if (code != StatusCode::Success)
+        {
+            return code;
+        }
+        return load_hostpolicy_and_execute(resolved_dir, argc, argv);
     }
 }
 

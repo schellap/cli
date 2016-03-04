@@ -75,7 +75,7 @@ static int fx_ver_t::compare(const fx_ver_t&a, const fx_ver_t& b)
         ;
 }
 
-bool fx_muxer_t::determine_sdk_location(const pal::string_t& own_dir)
+void fx_muxer_t::determine_sdk_location(const pal::string_t& own_dir, pal::string_t* cli_sdk)
 {
     pal::string_t cwd;
     pal::string_t global;
@@ -97,15 +97,42 @@ bool fx_muxer_t::determine_sdk_location(const pal::string_t& own_dir)
             }
         }
     }
-    pal::string_t sdk_path;
+    pal::string_t retval;
     if (!global.empty())
     {
-        global_json_t global_json(global);
-        sdk_path = global_json.get_sdk_path();
+        pal::string_t sdk_path = own_dir;
+        append_path(&sdk_path, _X("sdk"));
+        pal::string_t cli_version = global_json_t::get_cli_version(global);
+        if (!cli_version.empty())
+        {
+            append_path(&sdk_path, cli_version);
+            if (pal::directory_exists(sdk_path))
+            {
+                retval = sdk_path;
+            }
+        }
     }
-    else
+    if (retval.empty())
     {
+        pal::string_t sdk_path = own_dir;
+        append_path(&sdk_path, _X("sdk"));
+        std::vector<pal::string_t> versions;
+        pal::readdir(sdk_path, &versions);
+
+        pal::vector<sem_ver_t> sem_vers;
+        sem_vers.reserve(versions.size());
+        for (const auto& version : versions)
+        {
+            sem_vers.push_back(sem_ver_t(version));
+        }
+        auto iter = std::max_element(sem_vers.begin(), sem_vers.end());
+        if (iter != sem_vers.end())
+        {
+            append_path(&sdk_path, iter->as_str().c_str());
+            retval = sdk_path;
+        }
     }
+    return retval;
 }
 
 bool fx_muxer_t::create_fx_muxer(const pal::string_t& own_dir, int argc, const pal::char_t* argv[])
@@ -120,8 +147,11 @@ bool fx_muxer_t::create_fx_muxer(const pal::string_t& own_dir, int argc, const p
     }
     else
     {
-        determine_sdk_location(own_dir);
-
+        pal::string_t retval = determine_sdk_location(own_dir);
+        if (retval.empty())
+        {
+            return false;
+        }
     }
 }
 
