@@ -12,7 +12,7 @@
 #include "libhost.h"
 
 
-int run(const arguments_t& args)
+int run(const pal::string_t& fx_dir, const arguments_t& args)
 {
     // Load the deps resolver
     deps_resolver_t resolver(args);
@@ -180,7 +180,7 @@ int run(const arguments_t& args)
     return exit_code;
 }
 
-int execute_app(const int argc, const pal::char_t* argv[])
+int execute_app(const pal::string_t& fx_dir, const int argc, const pal::char_t* argv[])
 {
     // Take care of arguments
     arguments_t args;
@@ -189,28 +189,26 @@ int execute_app(const int argc, const pal::char_t* argv[])
         return LibHostStatusCode::LibHostInvalidArgs;
     }
 
-    return run(args);
-}
-
-static HostMode g_host_mode = HostMode::Invalid;
-
-SHARED_API int corehost_init(const libhost_init_t* init)
-{
-    g_host_mode = init->get_host_mode();
+    return run(fx_dir, args);
 }
 
 SHARED_API int corehost_main(const int argc, const pal::char_t* argv[])
 {
     trace::setup();
-    switch (g_host_mode)
+    pal::string_t own_dir;
+    switch (detect_operating_mode(argc, argv, &own_dir))
     {
-    case Invalid:
-        return LibHostStatusCode::LibHostInitFailure;
+    case Standalone:
+        return execute_app(_X(""), argc, argv);
 
     case Framework:
-        return execute_app(argc, argv);
+        return execute_app(own_dir, argc, argv);
 
     case Muxer:
         return fx_muxer_t::execute(argc, argv);
+
+    default:
+    case Invalid:
+        return LibHostStatusCode::LibHostInitFailure;
     }
 }

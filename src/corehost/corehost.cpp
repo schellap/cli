@@ -18,7 +18,7 @@ bool corehost_t::hostpolicy_exists_in_dir(const pal::string_t& lib_dir, pal::str
 	return true;
 }
 
-int corehost_t::load_host_lib(const pal::string_t& lib_dir, pal::dll_t* h_host, corehost_main_fn* main_fn, corehost_init_fn* init_fn)
+int corehost_t::load_host_lib(const pal::string_t& lib_dir, pal::dll_t* h_host, corehost_main_fn* main_fn)
 {
 	pal::string_t host_path;
 	if (!hostpolicy_exists_in_dir(lib_dir, &host_path))
@@ -36,30 +36,20 @@ int corehost_t::load_host_lib(const pal::string_t& lib_dir, pal::dll_t* h_host, 
 	// Obtain entrypoint symbol
 	*main_fn = (corehost_main_fn)pal::get_symbol(*h_host, "corehost_main");
 
-    // Obtain initialize symbol
-    *init_fn = (corehost_init_fn)pal::get_symbol(*h_host, "corehost_init");
-
-	return (*main_fn != nullptr) && (*init_fn != nullptr)
+	return (*main_fn != nullptr)
 		? StatusCode::Success
 		: StatusCode::CoreHostEntryPointFailure;
 }
 
 int corehost_t::load_hostpolicy_and_execute(
     const pal::string_t& resolved_dir,
-    const libhost_init_t& data,
     const int argc,
     const pal::char_t* argv[])
 {
 	pal::dll_t corehost;
 	corehost_main_fn host_main = nullptr;
-    corehost_init_fn host_init = nullptr;
 
-    int code = load_host_lib(resolved_dir, &corehost, &host_main, &host_init);
-
-    if (code = host_init(&data) != 0)
-    {
-        return code;
-    }
+    int code = load_host_lib(resolved_dir, &corehost, &host_main);
 
 	if (code != StatusCode::Success)
 	{
@@ -88,36 +78,15 @@ bool corehost_t::hostpolicy_exists_in_svc(pal::string_t* resolved_path)
 #endif
 }
 
-HostMode corehost_t::detect_operating_mode(pal::string_t* own_path, pal::string_t* own_dir, pal::string_t* own_name)
-{
-	own_name->assign(get_filename(*own_path));
-	own_dir->assign(get_directory(*own_path));
-
-	if (coreclr_exists_in_dir(*own_dir))
-	{
-		pal::string_t own_deps_json = *own_dir;
-		pal::string_t own_deps_filename = strip_file_ext(*own_name) + _X(".deps.json");
-		append_path(&own_deps_json, own_deps_filename.c_str());
-		return (pal::file_exists(own_deps_json)) ? HostMode::Standalone : HostMode::Framework;
-	}
-	else
-	{
-		return HostMode::Muxer;
-	}
-}
-
 int corehost_t::run(const int argc, const pal::char_t* argv[])
 {
-	pal::string_t own_path, own_dir, own_name;
-
-    auto mode = detect_operating_mode(&own_path, &own_dir, &own_name);
-
-    libhost_init_t init_data(mode);
+	pal::string_t own_dir;
+    auto mode = detect_operating_mode(argc, argv, &own_dir);
 
     switch (mode)
 	{
 	case Muxer:
-        return load_hostpolicy_and_execute(own_dir, init_data, argc, argv);
+        return load_hostpolicy_and_execute(own_dir, argc, argv);
 
 	case Framework:
         {
@@ -125,7 +94,7 @@ int corehost_t::run(const int argc, const pal::char_t* argv[])
             pal::string_t fx_root = get_directory(get_directory(get_directory(own_dir)));
             if (hostpolicy_exists_in_dir(fx_root, &resolved_dir))
             {
-                return load_hostpolicy_and_execute(resolved_dir, init_data, argc, argv);
+                return load_hostpolicy_and_execute(resolved_dir, argc, argv);
             }
         }
         return StatusCode::CoreHostLibMissingFailure;
@@ -136,7 +105,7 @@ int corehost_t::run(const int argc, const pal::char_t* argv[])
             if (hostpolicy_exists_in_svc(&resolved_dir) ||
                 hostpolicy_exists_in_dir(own_dir, &resolved_dir))
             {
-                return load_hostpolicy_and_execute(resolved_dir, init_data, argc, argv);
+                return load_hostpolicy_and_execute(resolved_dir, argc, argv);
             }
         }
         return StatusCode::CoreHostLibMissingFailure;

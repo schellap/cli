@@ -20,6 +20,7 @@ include_directories(.)
 
 # CMake does not recommend using globbing since it messes with the freshness checks
 set(SOURCES
+    libhost.cpp
     ../corehost.cpp
     ../common/trace.cpp
     ../common/utils.cpp)

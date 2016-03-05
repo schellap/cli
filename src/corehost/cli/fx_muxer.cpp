@@ -13,7 +13,12 @@
 
 typedef web::json::value json_value;
 
-pal::string_t fx_muxer_t::get_cli_version(const pal::string_t& global_json)
+pal::string_t fx_muxer_t::resolve_fx_dir(const pal::string_t& app_path)
+{
+    return _X("");
+}
+
+pal::string_t fx_muxer_t::resolve_cli_version(const pal::string_t& global_json)
 {
     pal::string_t retval;
     if (!pal::file_exists(global_json))
@@ -44,7 +49,7 @@ pal::string_t fx_muxer_t::get_cli_version(const pal::string_t& global_json)
     }
 }
 
-bool fx_muxer_t::determine_sdk_dotnet_path(const pal::string_t& own_dir, pal::string_t* cli_sdk)
+bool fx_muxer_t::resolve_sdk_dotnet_path(const pal::string_t& own_dir, pal::string_t* cli_sdk)
 {
     pal::string_t cwd;
     pal::string_t global;
@@ -69,7 +74,7 @@ bool fx_muxer_t::determine_sdk_dotnet_path(const pal::string_t& own_dir, pal::st
     pal::string_t retval;
     if (!global.empty())
     {
-        pal::string_t cli_version = get_cli_version(global);
+        pal::string_t cli_version = resolve_cli_version(global);
         if (!cli_version.empty())
         {
             pal::string_t sdk_path = own_dir;
@@ -109,19 +114,21 @@ bool fx_muxer_t::determine_sdk_dotnet_path(const pal::string_t& own_dir, pal::st
 	return !retval.empty();
 }
 
-extern int execute_app(const int argc, const pal::char_t* argv[]);
+extern int execute_app(const pal::string_t& fx_dir, const int argc, const pal::char_t* argv[]);
 
 /* static */
 int fx_muxer_t::execute(const int argc, const pal::char_t* argv[])
 {
-    pal::string_t managed_application = pal::string_t(argv[1]);
-    if (ends_with(managed_application, _X(".dll"), false))
+    pal::string_t app_path = pal::string_t(argv[1]);
+    if (ends_with(app_path, _X(".dll"), false))
     {
-        if (!pal::realpath(&managed_application))
+        if (!pal::realpath(&app_path))
         {
             return LibHostStatusCode::LibHostExecModeFailure;
         }
-        return execute_app(argc, argv);
+
+        pal::string_t fx_dir = resolve_fx_dir(app_path);
+        return execute_app(fx_dir, argc, argv);
     }
     else
     {
@@ -136,10 +143,12 @@ int fx_muxer_t::execute(const int argc, const pal::char_t* argv[])
         pal::string_t own_dir = get_directory(own_path);
 
         pal::string_t sdk_dotnet;
-        if (!determine_sdk_dotnet_path(own_dir, &sdk_dotnet))
+        if (!resolve_sdk_dotnet_path(own_dir, &sdk_dotnet))
         {
             return LibHostStatusCode::LibHostSdkFindFailure;
         }
+
+        pal::string_t fx_dir = resolve_fx_dir(sdk_dotnet);
 
         // Transform dotnet [command] [args] -> dotnet [dotnet.dll] [command] [args]
         // This can be made better to just setup a arguments_t args and do run(args) if it matters.
@@ -150,7 +159,7 @@ int fx_muxer_t::execute(const int argc, const pal::char_t* argv[])
             new_argv[1] = sdk_dotnet.c_str();
 
             assert(ends_with(sdk_dotnet, _X(".dll"), false));
-            return execute_app(new_argv.size(), new_argv.data());
+            return execute_app(fx_dir, new_argv.size(), new_argv.data());
         }
     }
 }

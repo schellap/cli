@@ -19,6 +19,7 @@ include_directories(../json/casablanca/include)
 set(SOURCES
     ../../common/trace.cpp
     ../../common/utils.cpp
+    ../libhost.cpp
     ../fx_ver.cpp
     ../fx_muxer.cpp
     ../json/casablanca/src/json/json.cpp

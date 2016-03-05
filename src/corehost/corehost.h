@@ -18,19 +18,17 @@ enum StatusCode
 };
 
 typedef int (*corehost_main_fn) (const int argc, const pal::char_t* argv[]);
-typedef int (*corehost_init_fn) (const libhost_init_t* data);
 
 class corehost_t
 {
 public:
 
 	int run(const int argc, const pal::char_t* argv[]);
-    static int load_hostpolicy_and_execute(const pal::string_t& resolved_dir, const libhost_init_t& data, const int argc, const pal::char_t* argv[]);
+    static int load_hostpolicy_and_execute(const pal::string_t& resolved_dir, const int argc, const pal::char_t* argv[]);
 
 private:
-	static HostMode detect_operating_mode(pal::string_t* own_path, pal::string_t* own_dir, pal::string_t* own_name);
 
-	static int load_host_lib(const pal::string_t& lib_dir, pal::dll_t* h_host, corehost_main_fn* main_fn, corehost_init_fn* init_fn);
+	static int load_host_lib(const pal::string_t& lib_dir, pal::dll_t* h_host, corehost_main_fn* main_fn);
 
 	static bool hostpolicy_exists_in_svc(pal::string_t* resolved_path);
 	static bool hostpolicy_exists_in_dir(const pal::string_t& lib_dir, pal::string_t* p_host_path);

@@ -29,18 +29,4 @@ enum LibHostStatusCode
     LibHostInvalidArgs       = 0x93,
 };
 
-class libhost_init_t
-{
-public:
-    libhost_init_t(const HostMode mode)
-        : m_mode(mode)
-    {
-    }
-
-    HostMode get_host_mode() const
-    {
-        return m_mode;
-    }
-
-    HostMode m_mode;
-};
+HostMode detect_operating_mode(const int argc, const pal::char_t* argv[], pal::string_t* own_dir = nullptr);
