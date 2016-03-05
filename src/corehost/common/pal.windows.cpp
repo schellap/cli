@@ -11,6 +11,8 @@
 
 static std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> g_converter;
 
+pal::string_t pal::to_string(int value) { return std::to_wstring(value); }
+
 bool pal::find_coreclr(pal::string_t* recv)
 {
     pal::string_t candidate;

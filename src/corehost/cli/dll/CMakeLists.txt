@@ -19,11 +19,13 @@ include_directories(../json/casablanca/include)
 set(SOURCES
     ../../common/trace.cpp
     ../../common/utils.cpp
-    ../args.cpp
+    ../fx_ver.cpp
+    ../fx_muxer.cpp
     ../json/casablanca/src/json/json.cpp
     ../json/casablanca/src/json/json_parsing.cpp
     ../json/casablanca/src/json/json_serialization.cpp
     ../json/casablanca/src/utilities/asyncrt_utils.cpp
+    ../args.cpp
     ../hostpolicy.cpp
     ../coreclr.cpp
     ../deps_resolver.cpp

@@ -5,21 +5,12 @@
 #include "args.h"
 #include "trace.h"
 #include "deps_resolver.h"
+#include "fx_muxer.h"
 #include "utils.h"
 #include "coreclr.h"
 #include "cpprest/json.h"
+#include "libhost.h"
 
-enum StatusCode
-{
-    // 0x80 prefix to distinguish from corehost main's error codes.
-    InvalidArgFailure      = 0x81,
-    CoreClrResolveFailure  = 0x82,
-    CoreClrBindFailure     = 0x83,
-    CoreClrInitFailure     = 0x84,
-    CoreClrExeFailure      = 0x85,
-    ResolverInitFailure    = 0x86,
-    ResolverResolveFailure = 0x87,
-};
 
 int run(const arguments_t& args)
 {
@@ -28,7 +19,7 @@ int run(const arguments_t& args)
     if (!resolver.valid())
     {
         trace::error(_X("Invalid .deps file"));
-        return StatusCode::ResolverInitFailure;
+        return LibHostStatusCode::ResolverInitFailure;
     }
 
     // Add packages directory
@@ -43,7 +34,7 @@ int run(const arguments_t& args)
     if (clr_path.empty() || !pal::realpath(&clr_path))
     {
         trace::error(_X("Could not resolve coreclr path"));
-        return StatusCode::CoreClrResolveFailure;
+        return LibHostStatusCode::CoreClrResolveFailure;
     }
     else
     {
@@ -53,7 +44,7 @@ int run(const arguments_t& args)
     probe_paths_t probe_paths;
     if (!resolver.resolve_probe_paths(args.app_dir, packages_dir, args.dotnet_packages_cache, clr_path, &probe_paths))
     {
-        return StatusCode::ResolverResolveFailure;
+        return LibHostStatusCode::ResolverResolveFailure;
     }
 
     // Build CoreCLR properties
@@ -104,7 +95,7 @@ int run(const arguments_t& args)
     if (!coreclr::bind(clr_path))
     {
         trace::error(_X("Failed to bind to coreclr"));
-        return StatusCode::CoreClrBindFailure;
+        return LibHostStatusCode::CoreClrBindFailure;
     }
 
     // Verbose logging
@@ -136,7 +127,7 @@ int run(const arguments_t& args)
     if (!SUCCEEDED(hr))
     {
         trace::error(_X("Failed to initialize CoreCLR, HRESULT: 0x%X"), hr);
-        return StatusCode::CoreClrInitFailure;
+        return LibHostStatusCode::CoreClrInitFailure;
     }
 
     if (trace::is_enabled())
@@ -174,7 +165,7 @@ int run(const arguments_t& args)
     if (!SUCCEEDED(hr))
     {
         trace::error(_X("Failed to execute managed app, HRESULT: 0x%X"), hr);
-        return StatusCode::CoreClrExeFailure;
+        return LibHostStatusCode::CoreClrExeFailure;
     }
 
     // Shut down the CoreCLR
@@ -189,16 +180,37 @@ int run(const arguments_t& args)
     return exit_code;
 }
 
-SHARED_API int corehost_main(const int argc, const pal::char_t* argv[])
+int execute_app(const int argc, const pal::char_t* argv[])
 {
-    trace::setup();
-
     // Take care of arguments
     arguments_t args;
     if (!parse_arguments(argc, argv, args))
     {
-        return StatusCode::InvalidArgFailure;
+        return LibHostStatusCode::LibHostInvalidArgs;
     }
 
     return run(args);
+}
+
+static HostMode g_host_mode = HostMode::Invalid;
+
+SHARED_API int corehost_init(const libhost_init_t* init)
+{
+    g_host_mode = init->get_host_mode();
+}
+
+SHARED_API int corehost_main(const int argc, const pal::char_t* argv[])
+{
+    trace::setup();
+    switch (g_host_mode)
+    {
+    case Invalid:
+        return LibHostStatusCode::LibHostInitFailure;
+
+    case Framework:
+        return execute_app(argc, argv);
+
+    case Muxer:
+        return fx_muxer_t::execute(argc, argv);
+    }
 }

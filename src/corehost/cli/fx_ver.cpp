@@ -3,9 +3,9 @@
 
 #include <cassert>
 #include "pal.h"
-#include "semver.h"
+#include "fx_ver.h"
 
-sem_ver_t::sem_ver_t(int major, int minor, int patch, const pal::string_t& pre, const pal::string_t& build)
+fx_ver_t::fx_ver_t(int major, int minor, int patch, const pal::string_t& pre, const pal::string_t& build)
     : major(major)
     , minor(minor)
     , patch(patch)
@@ -14,38 +14,53 @@ sem_ver_t::sem_ver_t(int major, int minor, int patch, const pal::string_t& pre, 
 {
 }
 
-sem_ver_t::sem_ver_t(int major, int minor, int patch, const pal::string_t& pre)
-	: sem_ver_t(major, minor, patch, pre, _X(""))
+fx_ver_t::fx_ver_t(int major, int minor, int patch, const pal::string_t& pre)
+	: fx_ver_t(major, minor, patch, pre, _X(""))
 {
 }
 
-sem_ver_t::sem_ver_t(int major, int minor, int patch)
-	: sem_ver_t(major, minor, patch, _X(""), _X(""))
+fx_ver_t::fx_ver_t(int major, int minor, int patch)
+	: fx_ver_t(major, minor, patch, _X(""), _X(""))
 {
 }
 
-bool sem_ver_t::operator ==(const sem_ver_t& b) const
+bool fx_ver_t::operator ==(const fx_ver_t& b) const
 {
     return compare(*this, b) == 0;
 }
 
-bool sem_ver_t::operator !=(const sem_ver_t& b) const
+bool fx_ver_t::operator !=(const fx_ver_t& b) const
 {
     return !operator ==(b);
 }
 
-bool sem_ver_t::operator <(const sem_ver_t& b) const
+bool fx_ver_t::operator <(const fx_ver_t& b) const
 {
     return compare(*this, b) < 0;
 }
 
-bool sem_ver_t::operator >(const sem_ver_t& b) const
+bool fx_ver_t::operator >(const fx_ver_t& b) const
 {
     return compare(*this, b) > 0;
 }
 
+pal::string_t fx_ver_t::as_str()
+{
+    pal::stringstream_t stream;
+    stream << major << _X(".") << minor << _X(".") << patch;
+    if (!pre.empty())
+    {
+        stream << _X(".") << pre;
+    }
+    if (!build.empty())
+    {
+        stream << _X("+") << build;
+    }
+    return stream.str();
+}
+
 /* static */
-int sem_ver_t::compare(const sem_ver_t&a, const sem_ver_t& b, bool ignore_build)
+int fx_ver_t::compare(const fx_ver_t&a, const fx_ver_t& b, bool ignore_build)
 {
     // compare(u.v.w-p+b, x.y.z-q+c)
     return
@@ -64,7 +79,7 @@ int sem_ver_t::compare(const sem_ver_t&a, const sem_ver_t& b, bool ignore_build)
 }
 
 /* static */
-bool sem_ver_t::parse(const pal::string_t& ver, sem_ver_t* sem_ver)
+bool fx_ver_t::parse(const pal::string_t& ver, fx_ver_t* fx_ver, bool parse_only_production)
 {
     size_t maj_start = 0;
     size_t maj_sep = ver.find(_X('.'));
@@ -87,9 +102,16 @@ bool sem_ver_t::parse(const pal::string_t& ver, sem_ver_t* sem_ver)
     if (pat_sep == pal::string_t::npos)
     {
         int patch = std::stoi(ver.substr(pat_start));
-        *sem_ver = sem_ver_t(major, minor, patch);
+        *fx_ver = fx_ver_t(major, minor, patch);
         return true;
     }
+
+    if (parse_only_production)
+    {
+        // This is a prerelease or has build suffix.
+        return false;
+    }
+
     int patch = std::stoi(ver.substr(pat_start, pat_sep - pat_start));
     
     int last_sep = pat_sep;
@@ -101,7 +123,7 @@ bool sem_ver_t::parse(const pal::string_t& ver, sem_ver_t* sem_ver)
 		pre = std::stoi(ver.substr(pre_start, pre_sep - pre_start));
         if (pre_sep == pal::string_t::npos)
         {
-            *sem_ver = sem_ver_t(major, minor, patch, pre);
+            *fx_ver = fx_ver_t(major, minor, patch, pre);
             return true;
         }
         last_sep = pre_sep;
@@ -109,7 +131,7 @@ bool sem_ver_t::parse(const pal::string_t& ver, sem_ver_t* sem_ver)
 
     assert(ver[last_sep] == _X('+'));
     size_t build_start = last_sep + 1;
-    *sem_ver = sem_ver_t(
+    *fx_ver = fx_ver_t(
         std::stoi(ver.substr(maj_start, maj_sep)),
         std::stoi(ver.substr(min_start, min_sep - min_start)),
         std::stoi(ver.substr(pat_start, pat_sep - pat_start)),

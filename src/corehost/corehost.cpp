@@ -3,9 +3,7 @@
 
 #include "trace.h"
 #include "utils.h"
-#include "libhost.h"
 #include "corehost.h"
-#include "fx_muxer.h"
 
 bool corehost_t::hostpolicy_exists_in_dir(const pal::string_t& lib_dir, pal::string_t* p_host_path)
 {
@@ -20,7 +18,7 @@ bool corehost_t::hostpolicy_exists_in_dir(const pal::string_t& lib_dir, pal::str
 	return true;
 }
 
-StatusCode corehost_t::load_host_lib(const pal::string_t& lib_dir, pal::dll_t* h_host, corehost_main_fn* main_fn)
+int corehost_t::load_host_lib(const pal::string_t& lib_dir, pal::dll_t* h_host, corehost_main_fn* main_fn, corehost_init_fn* init_fn)
 {
 	pal::string_t host_path;
 	if (!hostpolicy_exists_in_dir(lib_dir, &host_path))
@@ -38,21 +36,37 @@ StatusCode corehost_t::load_host_lib(const pal::string_t& lib_dir, pal::dll_t* h
 	// Obtain entrypoint symbol
 	*main_fn = (corehost_main_fn)pal::get_symbol(*h_host, "corehost_main");
 
-	return (*main_fn != nullptr)
+    // Obtain initialize symbol
+    *init_fn = (corehost_init_fn)pal::get_symbol(*h_host, "corehost_init");
+
+	return (*main_fn != nullptr) && (*init_fn != nullptr)
 		? StatusCode::Success
 		: StatusCode::CoreHostEntryPointFailure;
 }
 
-int corehost_t::load_hostpolicy_and_execute(const pal::string_t& resolved_dir, const int argc, const pal::char_t* argv[])
+int corehost_t::load_hostpolicy_and_execute(
+    const pal::string_t& resolved_dir,
+    const libhost_init_t& data,
+    const int argc,
+    const pal::char_t* argv[])
 {
 	pal::dll_t corehost;
-	corehost_main_fn host_main;
-	StatusCode code = load_host_lib(resolved_dir, &corehost, &host_main);
+	corehost_main_fn host_main = nullptr;
+    corehost_init_fn host_init = nullptr;
+
+    int code = load_host_lib(resolved_dir, &corehost, &host_main, &host_init);
+
+    if (code = host_init(&data) != 0)
+    {
+        return code;
+    }
+
 	if (code != StatusCode::Success)
 	{
 		return code;
 	}
-	return host_main(argc, argv);
+
+    return host_main(argc, argv);
 }
 
 bool corehost_t::hostpolicy_exists_in_svc(pal::string_t* resolved_path)
@@ -76,14 +90,6 @@ bool corehost_t::hostpolicy_exists_in_svc(pal::string_t* resolved_path)
 
 HostMode corehost_t::detect_operating_mode(pal::string_t* own_path, pal::string_t* own_dir, pal::string_t* own_name)
 {
-	// Get the full name of the application
-	if (!pal::get_own_executable_path(own_path) || !pal::realpath(own_path))
-	{
-		trace::error(_X("Failed to locate current executable"));
-		own_path->clear();
-		return HostMode::Invalid;
-	}
-
 	own_name->assign(get_filename(*own_path));
 	own_dir->assign(get_directory(*own_path));
 
@@ -102,26 +108,38 @@ HostMode corehost_t::detect_operating_mode(pal::string_t* own_path, pal::string_
 
 int corehost_t::run(const int argc, const pal::char_t* argv[])
 {
-	pal::string_t own_path, own_dir, own_name, resolved_dir;
-	switch (detect_operating_mode(&own_path, &own_dir, &own_name))
+	pal::string_t own_path, own_dir, own_name;
+
+    auto mode = detect_operating_mode(&own_path, &own_dir, &own_name);
+
+    libhost_init_t init_data(mode);
+
+    switch (mode)
 	{
 	case Muxer:
-		return fx_muxer_t(argc, argv).execute();
+        return load_hostpolicy_and_execute(own_dir, init_data, argc, argv);
 
 	case Framework:
-		if (hostpolicy_exists_in_dir(own_dir, &resolved_dir))
-		{
-			return load_hostpolicy_and_execute(resolved_dir, argc, argv);
-		}
-		return StatusCode::CoreHostLibMissingFailure;
+        {
+            pal::string_t resolved_dir;
+            pal::string_t fx_root = get_directory(get_directory(get_directory(own_dir)));
+            if (hostpolicy_exists_in_dir(fx_root, &resolved_dir))
+            {
+                return load_hostpolicy_and_execute(resolved_dir, init_data, argc, argv);
+            }
+        }
+        return StatusCode::CoreHostLibMissingFailure;
 
 	case Standalone:
-		if (hostpolicy_exists_in_svc(&resolved_dir) ||
-			hostpolicy_exists_in_dir(own_dir, &resolved_dir))
-		{
-			return load_hostpolicy_and_execute(resolved_dir, argc, argv);
-		}
-		return StatusCode::CoreHostLibMissingFailure;
+        {
+            pal::string_t resolved_dir;
+            if (hostpolicy_exists_in_svc(&resolved_dir) ||
+                hostpolicy_exists_in_dir(own_dir, &resolved_dir))
+            {
+                return load_hostpolicy_and_execute(resolved_dir, init_data, argc, argv);
+            }
+        }
+        return StatusCode::CoreHostLibMissingFailure;
 
 	default:
 		return StatusCode::CoreHostResolveModeFailure;

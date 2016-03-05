@@ -22,8 +22,6 @@ struct arguments_t
     pal::string_t dotnet_packages_cache;
     pal::string_t managed_application;
 
-	HostMode operating_mode;
-
     int app_argc;
     const pal::char_t** app_argv;
 

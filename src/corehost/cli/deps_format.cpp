@@ -306,7 +306,7 @@ void deps_json_t::reconcile_libraries_with_targets(
             for (const auto& rel_path : get_rel_paths_by_asset_type_fn(library.first, i))
             {
                 auto asset_name = get_filename_without_ext(rel_path);
-                if (ends_with(asset_name, _X(".ni")))
+                if (ends_with(asset_name, _X(".ni"), false))
                 {
                     asset_name = strip_file_ext(asset_name);
                 }

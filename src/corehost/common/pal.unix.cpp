@@ -20,6 +20,8 @@
 #define symlinkEntrypointExecutable "/proc/curproc/exe"
 #endif
 
+pal::string_t pal::to_string(int value) { return std::to_string(value); }
+
 bool pal::getcwd(pal::string_t* recv)
 {
     recv->clear();

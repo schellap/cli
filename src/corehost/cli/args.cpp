@@ -32,12 +32,15 @@ void display_help()
 
 bool parse_arguments(const int argc, const pal::char_t* argv[], arguments_t& args)
 {
-    pal::string_t own_dir, own_name;
-
-    if ((args.operating_mode = detect_operating_mode(argc, argv, &args.own_path, &own_dir, &own_name)) == Invalid)
+    // Get the full name of the application
+    if (!pal::get_own_executable_path(&args.own_path) || !pal::realpath(&args.own_path))
     {
+        trace::error(_X("Failed to locate current executable"));
         return false;
     }
+
+    auto own_name = get_filename(args.own_path);
+    auto own_dir = get_directory(args.own_path);
 
     if (own_name.compare(HOST_EXE_NAME) == 0)
     {
