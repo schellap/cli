@@ -10,9 +10,22 @@
 #include "coreclr.h"
 #include "cpprest/json.h"
 #include "libhost.h"
+#include "runtime_config.h"
 
+pal::string_t get_runtime_config_json(const pal::string_t& app_path)
+{
+	auto name = get_filename_without_ext(app_path);
+	auto json = get_directory(app_path);
+	append_path(&json, name.c_str());
+	append_path(&json, _X(".runtimeconfig.json"));
+	if (pal::file_exists(json))
+	{
+		return json;
+	}
+	return pal::string_t();
+}
 
-int run(const pal::string_t& fx_dir, const arguments_t& args)
+int run(const pal::string_t& fx_dir, const runtime_config_t& config, const arguments_t& args)
 {
     // Load the deps resolver
     deps_resolver_t resolver(args);
@@ -47,6 +60,8 @@ int run(const pal::string_t& fx_dir, const arguments_t& args)
         return LibHostStatusCode::ResolverResolveFailure;
     }
 
+	// TODO: config.get_runtime_properties();
+
     // Build CoreCLR properties
     const char* property_keys[] = {
         "TRUSTED_PLATFORM_ASSEMBLIES",
@@ -55,7 +70,6 @@ int run(const pal::string_t& fx_dir, const arguments_t& args)
         "NATIVE_DLL_SEARCH_DIRECTORIES",
         "PLATFORM_RESOURCE_ROOTS",
         "AppDomainCompatSwitch",
-        // TODO: pipe this from corehost.json
         "SERVER_GC",
         // Workaround: mscorlib does not resolve symlinks for AppContext.BaseDirectory dotnet/coreclr/issues/2128
         "APP_CONTEXT_BASE_DIRECTORY",
@@ -180,7 +194,7 @@ int run(const pal::string_t& fx_dir, const arguments_t& args)
     return exit_code;
 }
 
-int execute_app(const pal::string_t& fx_dir, const int argc, const pal::char_t* argv[])
+int execute_app(const pal::string_t& fx_dir, runtime_config_t* runtime, const int argc, const pal::char_t* argv[])
 {
     // Take care of arguments
     arguments_t args;
@@ -189,7 +203,11 @@ int execute_app(const pal::string_t& fx_dir, const int argc, const pal::char_t* 
         return LibHostStatusCode::LibHostInvalidArgs;
     }
 
-    return run(fx_dir, args);
+	const runtime_config_t& config = runtime
+								   ? *runtime
+								   : runtime_config_t(args.managed_application);
+
+    run(fx_dir, config, args);
 }
 
 SHARED_API int corehost_main(const int argc, const pal::char_t* argv[])
@@ -199,10 +217,10 @@ SHARED_API int corehost_main(const int argc, const pal::char_t* argv[])
     switch (detect_operating_mode(argc, argv, &own_dir))
     {
     case Standalone:
-        return execute_app(_X(""), argc, argv);
+        return execute_app(_X(""), nullptr, argc, argv);
 
     case Framework:
-        return execute_app(own_dir, argc, argv);
+        return execute_app(own_dir, nullptr, argc, argv);
 
     case Muxer:
         return fx_muxer_t::execute(argc, argv);

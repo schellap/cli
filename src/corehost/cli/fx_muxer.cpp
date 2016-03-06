@@ -9,13 +9,48 @@
 #include "fx_ver.h"
 #include "fx_muxer.h"
 #include "trace.h"
+#include "runtime_config.h"
 #include "cpprest/json.h"
 
 typedef web::json::value json_value;
 
-pal::string_t fx_muxer_t::resolve_fx_dir(const pal::string_t& app_path)
+pal::string_t fx_muxer_t::resolve_fx_dir(const pal::string_t& muxer_path, runtime_config_t* runtime, const pal::string_t& app_path)
 {
-    return _X("");
+	auto specified_fx = runtime->get_fx_version();
+	auto roll_fwd = runtime->get_fx_roll_fwd();
+	fx_ver_t specified(-1, -1, -1);
+	if (!fx_ver_t::parse(specified_fx, &specified, true))
+	{
+		return pal::string_t();
+	}
+
+	std::vector<pal::string_t> list;
+	auto fx_dir = get_directory(muxer_path);
+	append_path(&fx_dir, _X("Shared"));
+	append_path(&fx_dir, _X("NetCoreApp"));
+
+	// If not roll forward or if pre-release, just return.
+	if (!roll_fwd || !specified.pre.empty())
+	{
+		append_path(&fx_dir, specified_fx.c_str());
+	}
+	else
+	{
+		pal::readdir(fx_dir, &list);
+		fx_ver_t max_specified = specified;
+		for (const auto& version : list)
+		{
+			fx_ver_t ver(-1, -1, -1);
+			if (fx_ver_t::parse(version, &ver, true) &&
+				ver.major == max_specified.major &&
+				ver.minor == max_specified.minor)
+			{
+				max_specified.patch = max(ver.patch, max_specified.patch);
+			}
+		}
+		append_path(&fx_dir, max_specified.as_str().c_str());
+	}
+	return pal::directory_exists(fx_dir) ? fx_dir : pal::string_t();
 }
 
 pal::string_t fx_muxer_t::resolve_cli_version(const pal::string_t& global_json)
@@ -80,7 +115,7 @@ bool fx_muxer_t::resolve_sdk_dotnet_path(const pal::string_t& own_dir, pal::stri
             pal::string_t sdk_path = own_dir;
             append_path(&sdk_path, _X("sdk"));
             append_path(&sdk_path, cli_version.c_str());
-            if (pal::directory_exists(sdk_path))
+			if (pal::directory_exists(sdk_path))
             {
                 retval = sdk_path;
             }
@@ -90,36 +125,46 @@ bool fx_muxer_t::resolve_sdk_dotnet_path(const pal::string_t& own_dir, pal::stri
     {
         pal::string_t sdk_path = own_dir;
         append_path(&sdk_path, _X("sdk"));
-        std::vector<pal::string_t> versions;
-        pal::readdir(sdk_path, &versions);
 
-        std::vector<fx_ver_t> sem_vers;
-        sem_vers.reserve(versions.size());
+		std::vector<pal::string_t> versions;
+        pal::readdir(sdk_path, &versions);
+		fx_ver_t max_ver(-1, -1, -1);
         for (const auto& version : versions)
         {
-            fx_ver_t ver(0, 0, 0);
+            fx_ver_t ver(-1, -1, -1);
             if (fx_ver_t::parse(version, &ver, true))
             {
-                sem_vers.push_back(ver);
+				max_ver = max(ver, max_ver);
             }
         }
-        auto iter = std::max_element(sem_vers.begin(), sem_vers.end());
-        if (iter != sem_vers.end())
-        {
-            append_path(&sdk_path, iter->as_str().c_str());
-            retval = sdk_path;
-        }
-    }
+		append_path(&sdk_path, max_ver.as_str().c_str());
+		if (pal::directory_exists(sdk_path))
+		{
+			retval = sdk_path;
+		}
+	}
     cli_sdk->assign(retval);
 	return !retval.empty();
 }
 
-extern int execute_app(const pal::string_t& fx_dir, const int argc, const pal::char_t* argv[]);
+extern pal::string_t get_runtime_config_json(const pal::string_t& app_path);
+extern int execute_app(const pal::string_t& fx_dir, runtime_config_t* config, const int argc, const pal::char_t* argv[]);
 
 /* static */
 int fx_muxer_t::execute(const int argc, const pal::char_t* argv[])
 {
-    pal::string_t app_path = pal::string_t(argv[1]);
+	// Get the full name of the application
+	pal::string_t own_path;
+	if (!pal::get_own_executable_path(&own_path) || !pal::realpath(&own_path))
+	{
+		trace::error(_X("Failed to locate current executable"));
+		return LibHostStatusCode::LibHostCurExeFindFailure;
+	}
+
+	pal::string_t own_dir = get_directory(own_path);
+
+	pal::string_t app_path = pal::string_t(argv[1]);
+	runtime_config_t config(get_runtime_config_json(app_path));
     if (ends_with(app_path, _X(".dll"), false))
     {
         if (!pal::realpath(&app_path))
@@ -127,28 +172,18 @@ int fx_muxer_t::execute(const int argc, const pal::char_t* argv[])
             return LibHostStatusCode::LibHostExecModeFailure;
         }
 
-        pal::string_t fx_dir = resolve_fx_dir(app_path);
-        return execute_app(fx_dir, argc, argv);
+        pal::string_t fx_dir = resolve_fx_dir(own_dir, &config, app_path);
+        return execute_app(fx_dir, &config, argc, argv);
     }
     else
     {
-        // Get the full name of the application
-        pal::string_t own_path;
-        if (!pal::get_own_executable_path(&own_path) || !pal::realpath(&own_path))
-        {
-            trace::error(_X("Failed to locate current executable"));
-            return LibHostStatusCode::LibHostCurExeFindFailure;
-        }
-
-        pal::string_t own_dir = get_directory(own_path);
-
         pal::string_t sdk_dotnet;
         if (!resolve_sdk_dotnet_path(own_dir, &sdk_dotnet))
         {
             return LibHostStatusCode::LibHostSdkFindFailure;
         }
 
-        pal::string_t fx_dir = resolve_fx_dir(sdk_dotnet);
+		pal::string_t fx_dir = resolve_fx_dir(own_dir, &config, sdk_dotnet);
 
         // Transform dotnet [command] [args] -> dotnet [dotnet.dll] [command] [args]
         // This can be made better to just setup a arguments_t args and do run(args) if it matters.
@@ -159,7 +194,7 @@ int fx_muxer_t::execute(const int argc, const pal::char_t* argv[])
             new_argv[1] = sdk_dotnet.c_str();
 
             assert(ends_with(sdk_dotnet, _X(".dll"), false));
-            return execute_app(fx_dir, new_argv.size(), new_argv.data());
+            return execute_app(fx_dir, &config, new_argv.size(), new_argv.data());
         }
     }
 }

@@ -22,6 +22,7 @@ set(SOURCES
     ../libhost.cpp
     ../fx_ver.cpp
     ../fx_muxer.cpp
+    ../runtime_config.cpp
     ../json/casablanca/src/json/json.cpp
     ../json/casablanca/src/json/json_parsing.cpp
     ../json/casablanca/src/json/json_serialization.cpp
