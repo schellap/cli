@@ -28,7 +28,9 @@ pal::string_t get_runtime_config_json(const pal::string_t& app_path)
 int run(const pal::string_t& fx_dir, const runtime_config_t& config, const arguments_t& args)
 {
     // Load the deps resolver
-    deps_resolver_t resolver(args);
+	pal::string_t fx_deps(fx_dir);
+	append_path(&fx_deps, _X("netcoreapp.deps.json"));
+    deps_resolver_t resolver(fx_deps, args);
     if (!resolver.valid())
     {
         trace::error(_X("Invalid .deps file"));
@@ -78,7 +80,7 @@ int run(const pal::string_t& fx_dir, const runtime_config_t& config, const argum
     auto tpa_paths_cstr = pal::to_stdstring(probe_paths.tpa);
     auto app_base_cstr = pal::to_stdstring(args.app_dir);
     auto native_dirs_cstr = pal::to_stdstring(probe_paths.native);
-    auto culture_dirs_cstr = pal::to_stdstring(probe_paths.culture);
+    auto resources_dirs_cstr = pal::to_stdstring(probe_paths.resources);
 
     // Workaround for dotnet/cli Issue #488 and #652
     pal::string_t server_gc;
@@ -94,7 +96,7 @@ int run(const pal::string_t& fx_dir, const runtime_config_t& config, const argum
         // NATIVE_DLL_SEARCH_DIRECTORIES
         native_dirs_cstr.c_str(),
         // PLATFORM_RESOURCE_ROOTS
-        culture_dirs_cstr.c_str(),
+        resources_dirs_cstr.c_str(),
         // AppDomainCompatSwitch
         "UseLatestBehaviorWhenTFMNotSpecified",
         // SERVER_GC
@@ -205,9 +207,9 @@ int execute_app(const pal::string_t& fx_dir, runtime_config_t* runtime, const in
 
 	const runtime_config_t& config = runtime
 								   ? *runtime
-								   : runtime_config_t(args.managed_application);
+								   : runtime_config_t(get_runtime_config_json(args.managed_application));
 
-    run(fx_dir, config, args);
+    return run(fx_dir, config, args);
 }
 
 SHARED_API int corehost_main(const int argc, const pal::char_t* argv[])

@@ -17,15 +17,17 @@ struct probe_paths_t
 {
     pal::string_t tpa;
     pal::string_t native;
-    pal::string_t culture;
+    pal::string_t resources;
 };
 
 class deps_resolver_t
 {
 public:
-    deps_resolver_t(const arguments_t& args)
+    deps_resolver_t(const pal::string_t& fx_deps, const arguments_t& args)
         : m_svc(args.dotnet_servicing)
         , m_runtime_svc(args.dotnet_runtime_servicing)
+		, m_fx_deps(fx_deps)
+		, m_fx_dir(get_directory(fx_deps))
         , m_coreclr_index(-1)
         , m_deps(args.deps_path)
     {
@@ -73,6 +75,9 @@ private:
     // Servicing index to resolve serviced assembly paths.
     servicing_index_t m_svc;
 
+	// Framework deps file.
+	pal::string_t m_fx_dir;
+
     // Runtime servicing directory.
     pal::string_t m_runtime_svc;
 
@@ -84,7 +89,10 @@ private:
     int m_coreclr_index;
 
     // The dep file path
-    deps_text_t m_deps;
+    deps_json_t m_deps;
+
+	// Framework deps, not present if app local.
+	deps_json_t m_fx_deps;
 
     // Is the deps file valid
     bool m_deps_valid;

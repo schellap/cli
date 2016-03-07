@@ -95,21 +95,7 @@ void add_unique_path(
 //
 bool deps_resolver_t::load()
 {
-    for (int i = 0; i < m_deps.get_entries().size(); ++i)
-    {
-        const deps_entry_t& entry = m_deps.get_entries()[i];
-        if (entry.asset_type == _X("native") &&
-            entry.asset_name == LIBCORECLR_FILENAME)
-        {
-            m_coreclr_index = i;
-            trace::verbose(_X("Found coreclr from deps entry [%d] [%s, %s, %s]"),
-                m_coreclr_index,
-                entry.library_name.c_str(),
-                entry.library_version.c_str(),
-                entry.relative_path.c_str());
-        }
-    }
-    return true;
+	return m_deps.is_valid() && m_fx_deps.is_valid();
 }
 
 // -----------------------------------------------------------------------------
@@ -174,6 +160,12 @@ pal::string_t deps_resolver_t::resolve_coreclr_dir(
     const pal::string_t& package_dir,
     const pal::string_t& package_cache_dir)
 {
+	if (!m_fx_dir.empty())
+	{
+		trace::verbose(_X("Probing for CoreCLR in framework dir=[%s]"), m_fx_dir.c_str());
+		return m_fx_dir;
+	}
+
     // Runtime servicing
     trace::verbose(_X("Probing for CoreCLR in servicing dir=[%s]"), m_runtime_svc.c_str());
     if (!m_runtime_svc.empty())
@@ -192,7 +184,7 @@ pal::string_t deps_resolver_t::resolve_coreclr_dir(
     trace::verbose(_X("Probing for CoreCLR in package cache=[%s] deps index: [%d]"), package_cache_dir.c_str(), m_coreclr_index);
     pal::string_t coreclr_cache;
     if (m_coreclr_index >= 0 && !package_cache_dir.empty() &&
-            m_deps.get_entries()[m_coreclr_index].to_hash_matched_path(package_cache_dir, &coreclr_cache))
+            m_deps.get_coreclr_entry().to_hash_matched_path(package_cache_dir, &coreclr_cache))
     {
         return get_directory(coreclr_cache);
     }
@@ -208,7 +200,7 @@ pal::string_t deps_resolver_t::resolve_coreclr_dir(
     trace::verbose(_X("Probing for CoreCLR in packages=[%s] deps index: [%d]"), package_dir.c_str(), m_coreclr_index);
     pal::string_t coreclr_package;
     if (m_coreclr_index >= 0 && !package_dir.empty() &&
-        m_deps.get_entries()[m_coreclr_index].to_full_path(package_dir, &coreclr_package))
+        m_deps.get_coreclr_entry().to_full_path(package_dir, &coreclr_package))
     {
         return get_directory(coreclr_package);
     }
@@ -257,10 +249,10 @@ void deps_resolver_t::resolve_tpa_list(
 
     add_mscorlib_to_tpa(clr_dir, &items, output);
 
-    for (const deps_entry_t& entry : m_deps.get_entries())
+    for (const deps_entry_t& entry : m_deps.get_entries(_X("runtime")))
     {
         // Is this asset a "runtime" type?
-        if (entry.asset_type != _X("runtime") || items.count(entry.asset_name))
+        if (items.count(entry.asset_name))
         {
             continue;
         }
@@ -300,18 +292,18 @@ void deps_resolver_t::resolve_tpa_list(
 }
 
 // -----------------------------------------------------------------------------
-// Resolve the directories order for culture/native lookup
+// Resolve the directories order for resources/native lookup
 //
 // Description:
 //    This general purpose function specifies priority order of directory lookup
-//    for both native images and culture specific resource images. Lookup for
-//    culture assemblies is done by looking up two levels above from the file
+//    for both native images and resources specific resource images. Lookup for
+//    resources assemblies is done by looking up two levels above from the file
 //    path. Lookup for native images is done by looking up one level from the
 //    file path.
 //
 //  Parameters:
 //     asset_type        - The type of the asset that needs lookup, currently
-//                         supports "culture" and "native"
+//                         supports "resources" and "native"
 //     app_dir           - The application local directory
 //     package_dir       - The directory path to where packages are restored
 //     package_cache_dir - The directory path to secondary cache for packages
@@ -328,27 +320,27 @@ void deps_resolver_t::resolve_probe_dirs(
         const pal::string_t& clr_dir,
         pal::string_t* output)
 {
-    assert(asset_type == _X("culture") || asset_type == _X("native"));
+    assert(asset_type == _X("resources") || asset_type == _X("native"));
 
-    // For culture assemblies, we need to provide the base directory of the culture path.
+    // For resources assemblies, we need to provide the base directory of the resources path.
     // For example: .../Foo/en-US/Bar.dll, then, the resolved path is .../Foo
-    std::function<pal::string_t(const pal::string_t&)> culture = [] (const pal::string_t& str) {
+    std::function<pal::string_t(const pal::string_t&)> resources = [] (const pal::string_t& str) {
         return get_directory(get_directory(str));
     };
     // For native assemblies, obtain the directory path from the file path
     std::function<pal::string_t(const pal::string_t&)> native = [] (const pal::string_t& str) {
         return get_directory(str);
     };
-    std::function<pal::string_t(const pal::string_t&)>& action = (asset_type == _X("culture")) ? culture : native;
+    std::function<pal::string_t(const pal::string_t&)>& action = (asset_type == _X("resources")) ? resources : native;
 
     std::set<pal::string_t> items;
 
     // Fill the "output" with serviced DLL directories if they are serviceable
     // and have an entry present.
-    for (const deps_entry_t& entry : m_deps.get_entries())
+    for (const deps_entry_t& entry : m_deps.get_entries(asset_type))
     {
         pal::string_t redirection_path;
-        if (entry.is_serviceable && entry.asset_type == asset_type && entry.library_type == _X("Package") &&
+        if (entry.is_serviceable && entry.library_type == _X("Package") &&
                 m_svc.find_redirection(entry.library_name, entry.library_version, entry.relative_path, &redirection_path))
         {
             add_unique_path(asset_type, action(redirection_path), &items, output);
@@ -360,9 +352,9 @@ void deps_resolver_t::resolve_probe_dirs(
     // Take care of the secondary cache path
     if (!package_cache_dir.empty())
     {
-        for (const deps_entry_t& entry : m_deps.get_entries())
+        for (const deps_entry_t& entry : m_deps.get_entries(asset_type))
         {
-            if (entry.asset_type == asset_type && entry.to_hash_matched_path(package_cache_dir, &candidate))
+            if (entry.to_hash_matched_path(package_cache_dir, &candidate))
             {
                 add_unique_path(asset_type, action(candidate), &items, output);
             }
@@ -375,7 +367,7 @@ void deps_resolver_t::resolve_probe_dirs(
     // Take care of the package restore path
     if (!package_dir.empty())
     {
-        for (const deps_entry_t& entry : m_deps.get_entries())
+        for (const deps_entry_t& entry : m_deps.get_entries(asset_type))
         {
             if (entry.asset_type == asset_type && entry.to_full_path(package_dir, &candidate))
             {
@@ -390,7 +382,7 @@ void deps_resolver_t::resolve_probe_dirs(
 
 
 // -----------------------------------------------------------------------------
-// Entrypoint to resolve TPA, native and culture path ordering to pass to CoreCLR.
+// Entrypoint to resolve TPA, native and resources path ordering to pass to CoreCLR.
 //
 //  Parameters:
 //     app_dir           - The application local directory
@@ -410,6 +402,6 @@ bool deps_resolver_t::resolve_probe_paths(
 {
     resolve_tpa_list(app_dir, package_dir, package_cache_dir, clr_dir, &probe_paths->tpa);
     resolve_probe_dirs(_X("native"), app_dir, package_dir, package_cache_dir, clr_dir, &probe_paths->native);
-    resolve_probe_dirs(_X("culture"), app_dir, package_dir, package_cache_dir, clr_dir, &probe_paths->culture);
+    resolve_probe_dirs(_X("resources"), app_dir, package_dir, package_cache_dir, clr_dir, &probe_paths->resources);
     return true;
 }

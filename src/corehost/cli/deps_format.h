@@ -25,7 +25,7 @@ class deps_json_t
 
 public:
     deps_json_t(const pal::string_t& deps_path)
-        : m_valid(load(deps_path, m_rid_fallback_graph /* dummy */))
+        : deps_json_t(deps_path, m_rid_fallback_graph /* dummy */)
     {
     }
 
@@ -35,7 +35,9 @@ public:
     }
 
     bool is_valid() { return m_valid; }
-    const std::vector<deps_entry_t>& get_entries() { return m_deps_entries; }
+	const std::vector<deps_entry_t>& get_entries(const pal::string_t& type);
+	bool has_coreclr_entry();
+	const deps_entry_t& get_coreclr_entry();
     const rid_fallback_graph_t& get_rid_fallback_graph() { return m_rid_fallback_graph; }
 
 private:
