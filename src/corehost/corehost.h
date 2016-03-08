@@ -24,7 +24,12 @@ class corehost_t
 public:
 
 	int run(const int argc, const pal::char_t* argv[]);
-    static int load_hostpolicy_and_execute(const pal::string_t& resolved_dir, const int argc, const pal::char_t* argv[]);
+    static int corehost_t::execute_app(
+        const pal::string_t& policy_dir,
+        const pal::string_t& fx_dir,
+        const runtime_config_t* config,
+        const int argc,
+        const pal::char_t* argv[]);
 
 private:
 

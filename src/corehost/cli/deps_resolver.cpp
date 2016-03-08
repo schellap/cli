@@ -102,9 +102,12 @@ bool deps_resolver_t::load()
 // Load local assemblies by priority order of their file extensions and
 // unique-fied  by their simple name.
 //
-void deps_resolver_t::get_local_assemblies(const pal::string_t& dir)
+void deps_resolver_t::get_dir_assemblies(
+    const pal::string_t& dir,
+    const pal::string_t& dir_name,
+    std::unordered_map<pal::string_t, pal::string_t>* dir_assemblies)
 {
-    trace::verbose(_X("Adding files from dir %s"), dir.c_str());
+    trace::verbose(_X("Adding files from %s dir %s"), dir_name.c_str(), dir.c_str());
 
     // Managed extensions in priority order, pick DLL over EXE and NI over IL.
     const pal::string_t managed_ext[] = { _X(".ni.dll"), _X(".dll"), _X(".ni.exe"), _X(".exe") };
@@ -134,16 +137,16 @@ void deps_resolver_t::get_local_assemblies(const pal::string_t& dir)
 
             // TODO: Do a case insensitive lookup.
             // Already added entry for this asset, by priority order skip this ext
-            if (m_local_assemblies.count(file_name))
+            if (dir_assemblies->count(file_name))
             {
-                trace::verbose(_X("Skipping %s because the %s already exists in local assemblies"), file.c_str(), m_local_assemblies.find(file_name)->second.c_str());
+                trace::verbose(_X("Skipping %s because the %s already exists in %s assemblies"), file.c_str(), dir_assemblies->find(file_name)->second.c_str(), dir_name.c_str());
                 continue;
             }
 
             // Add entry for this asset
             pal::string_t file_path = dir + DIR_SEPARATOR + file;
-            trace::verbose(_X("Adding %s to local assembly set from %s"), file_name.c_str(), file_path.c_str());
-            m_local_assemblies.emplace(file_name, file_path);
+            trace::verbose(_X("Adding %s to %s assembly set from %s"), file_name.c_str(), dir_name.c_str(), file_path.c_str());
+            dir_assemblies->emplace(file_name, file_path);
         }
     }
 }
@@ -166,25 +169,12 @@ pal::string_t deps_resolver_t::resolve_coreclr_dir(
 		return m_fx_dir;
 	}
 
-    // Runtime servicing
-    trace::verbose(_X("Probing for CoreCLR in servicing dir=[%s]"), m_runtime_svc.c_str());
-    if (!m_runtime_svc.empty())
-    {
-        pal::string_t svc_clr = m_runtime_svc;
-        append_path(&svc_clr, _X("runtime"));
-        append_path(&svc_clr, _X("coreclr"));
-
-        if (coreclr_exists_in_dir(svc_clr))
-        {
-            return svc_clr;
-        }
-    }
-
     // Package cache.
-    trace::verbose(_X("Probing for CoreCLR in package cache=[%s] deps index: [%d]"), package_cache_dir.c_str(), m_coreclr_index);
+    trace::verbose(_X("Probing for CoreCLR in package cache=[%s]"), package_cache_dir.c_str());
     pal::string_t coreclr_cache;
-    if (m_coreclr_index >= 0 && !package_cache_dir.empty() &&
-            m_deps.get_coreclr_entry().to_hash_matched_path(package_cache_dir, &coreclr_cache))
+    if (!package_cache_dir.empty() &&
+        m_deps.has_coreclr_entry() &&
+        m_deps.get_coreclr_entry().to_hash_matched_path(package_cache_dir, &coreclr_cache))
     {
         return get_directory(coreclr_cache);
     }
@@ -197,9 +187,10 @@ pal::string_t deps_resolver_t::resolve_coreclr_dir(
     }
 
     // Packages dir
-    trace::verbose(_X("Probing for CoreCLR in packages=[%s] deps index: [%d]"), package_dir.c_str(), m_coreclr_index);
+    trace::verbose(_X("Probing for CoreCLR in packages=[%s]"), package_dir.c_str());
     pal::string_t coreclr_package;
-    if (m_coreclr_index >= 0 && !package_dir.empty() &&
+    if (!package_dir.empty() &&
+        m_deps.has_coreclr_entry() &&
         m_deps.get_coreclr_entry().to_full_path(package_dir, &coreclr_package))
     {
         return get_directory(coreclr_package);
@@ -243,7 +234,11 @@ void deps_resolver_t::resolve_tpa_list(
         pal::string_t* output)
 {
     // Obtain the local assemblies in the app dir.
-    get_local_assemblies(app_dir);
+    get_dir_assemblies(app_dir, _X("local"), &m_app_and_fx_assemblies);
+    if (!m_fx_dir.empty())
+    {
+        get_dir_assemblies(m_fx_dir, _X("fx"), &m_app_and_fx_assemblies);
+    }
 
     std::set<pal::string_t> items;
 
@@ -271,10 +266,10 @@ void deps_resolver_t::resolve_tpa_list(
             add_tpa_asset(entry.asset_name, candidate, &items, output);
         }
         // Is this entry present locally?
-        else if (m_local_assemblies.count(entry.asset_name))
+        else if (m_app_and_fx_assemblies.count(entry.asset_name))
         {
-            // TODO: Case insensitive look up?
-            add_tpa_asset(entry.asset_name, m_local_assemblies.find(entry.asset_name)->second, &items, output);
+            WORKING HERE FOR CASING tolower.
+            add_tpa_asset(entry.asset_name, m_app_and_fx_assemblies.find(entry.asset_name)->second, &items, output);
         }
         // Is this entry present in the package restore dir?
         else if (entry.to_full_path(package_dir, &candidate))
@@ -285,7 +280,7 @@ void deps_resolver_t::resolve_tpa_list(
 
     // Finally, if the deps file wasn't present or has missing entries, then
     // add the app local assemblies to the TPA.
-    for (const auto& kv : m_local_assemblies)
+    for (const auto& kv : m_app_and_fx_assemblies)
     {
         add_tpa_asset(kv.first, kv.second, &items, output);
     }
@@ -363,6 +358,12 @@ void deps_resolver_t::resolve_probe_dirs(
 
     // App local path
     add_unique_path(asset_type, app_dir, &items, output);
+
+    // FX path if present
+    if (!m_fx_dir.empty())
+    {
+        add_unique_path(asset_type, m_fx_dir, &items, output);
+    }
 
     // Take care of the package restore path
     if (!package_dir.empty())

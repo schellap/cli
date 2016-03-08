@@ -15,6 +15,7 @@
 #include <unordered_map>
 #include <memory>
 #include <algorithm>
+#include <cassert>
 
 #if defined(_WIN32)
 

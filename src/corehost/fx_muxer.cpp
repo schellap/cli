@@ -11,6 +11,7 @@
 #include "trace.h"
 #include "runtime_config.h"
 #include "cpprest/json.h"
+#include "corehost.h"
 
 typedef web::json::value json_value;
 
@@ -147,22 +148,9 @@ bool fx_muxer_t::resolve_sdk_dotnet_path(const pal::string_t& own_dir, pal::stri
 	return !retval.empty();
 }
 
-extern pal::string_t get_runtime_config_json(const pal::string_t& app_path);
-extern int execute_app(const pal::string_t& fx_dir, runtime_config_t* config, const int argc, const pal::char_t* argv[]);
-
 /* static */
-int fx_muxer_t::execute(const int argc, const pal::char_t* argv[])
+int fx_muxer_t::execute(const pal::string_t& own_dir, int argc, const pal::char_t* argv[])
 {
-	// Get the full name of the application
-	pal::string_t own_path;
-	if (!pal::get_own_executable_path(&own_path) || !pal::realpath(&own_path))
-	{
-		trace::error(_X("Failed to locate current executable"));
-		return LibHostStatusCode::LibHostCurExeFindFailure;
-	}
-
-	pal::string_t own_dir = get_directory(own_path);
-
 	pal::string_t app_path = pal::string_t(argv[1]);
 	runtime_config_t config(get_runtime_config_json(app_path));
     if (ends_with(app_path, _X(".dll"), false))
@@ -173,7 +161,7 @@ int fx_muxer_t::execute(const int argc, const pal::char_t* argv[])
         }
 
         pal::string_t fx_dir = resolve_fx_dir(own_dir, &config, app_path);
-        return execute_app(fx_dir, &config, argc, argv);
+        return corehost_t::execute_app(fx_dir, fx_dir, &config, argc, argv);
     }
     else
     {
@@ -186,7 +174,6 @@ int fx_muxer_t::execute(const int argc, const pal::char_t* argv[])
 		pal::string_t fx_dir = resolve_fx_dir(own_dir, &config, sdk_dotnet);
 
         // Transform dotnet [command] [args] -> dotnet [dotnet.dll] [command] [args]
-        // This can be made better to just setup a arguments_t args and do run(args) if it matters.
         {
             std::vector<const pal::char_t*> new_argv(argc + 1);
             memcpy(&new_argv.data()[1], argv, argc);
@@ -194,7 +181,7 @@ int fx_muxer_t::execute(const int argc, const pal::char_t* argv[])
             new_argv[1] = sdk_dotnet.c_str();
 
             assert(ends_with(sdk_dotnet, _X(".dll"), false));
-            return execute_app(fx_dir, &config, new_argv.size(), new_argv.data());
+            return corehost_t::execute_app(fx_dir, _X(""), &config, new_argv.size(), new_argv.data());
         }
     }
 }

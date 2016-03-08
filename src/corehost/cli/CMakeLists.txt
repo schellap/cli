@@ -17,11 +17,14 @@ set (CMAKE_CXX_STANDARD 11)
 include_directories(..)
 include_directories(../common)
 include_directories(.)
+include_directories(./json/casablanca/include)
 
 # CMake does not recommend using globbing since it messes with the freshness checks
 set(SOURCES
     libhost.cpp
     ../corehost.cpp
+    ../fx_ver.cpp
+    ../fx_muxer.cpp
     ../common/trace.cpp
     ../common/utils.cpp)
 

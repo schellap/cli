@@ -6,6 +6,19 @@
 #include "trace.h"
 #include "libhost.h"
 
+pal::string_t get_runtime_config_json(const pal::string_t& app_path)
+{
+    auto name = get_filename_without_ext(app_path);
+    auto json = get_directory(app_path);
+    append_path(&json, name.c_str());
+    append_path(&json, _X(".runtimeconfig.json"));
+    if (pal::file_exists(json))
+    {
+        return json;
+    }
+    return pal::string_t();
+}
+
 HostMode detect_operating_mode(const int argc, const pal::char_t* argv[], pal::string_t* p_own_dir)
 {
     pal::string_t own_path;

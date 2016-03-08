@@ -25,7 +25,6 @@ class deps_resolver_t
 public:
     deps_resolver_t(const pal::string_t& fx_deps, const arguments_t& args)
         : m_svc(args.dotnet_servicing)
-        , m_runtime_svc(args.dotnet_runtime_servicing)
 		, m_fx_deps(fx_deps)
 		, m_fx_dir(get_directory(fx_deps))
         , m_coreclr_index(-1)
@@ -69,8 +68,11 @@ private:
         const pal::string_t& clr_dir,
         pal::string_t* output);
 
-    // Populate local assemblies from app_dir listing.
-    void get_local_assemblies(const pal::string_t& dir);
+    // Populate assemblies from the directory.
+    void get_dir_assemblies(
+        const pal::string_t& dir,
+        const pal::string_t& dir_name,
+        std::unordered_map<pal::string_t, pal::string_t>* dir_assemblies);
 
     // Servicing index to resolve serviced assembly paths.
     servicing_index_t m_svc;
@@ -78,12 +80,9 @@ private:
 	// Framework deps file.
 	pal::string_t m_fx_dir;
 
-    // Runtime servicing directory.
-    pal::string_t m_runtime_svc;
-
-    // Map of simple name -> full path of local assemblies populated in priority
-    // order of their extensions.
-    std::unordered_map<pal::string_t, pal::string_t> m_local_assemblies;
+    // Map of simple name -> full path of local/fx assemblies populated
+    // in priority order of their extensions.
+    std::unordered_map<pal::string_t, pal::string_t> m_app_and_fx_assemblies;
 
     // Special entry for coreclr in the deps entries
     int m_coreclr_index;

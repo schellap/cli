@@ -7,7 +7,7 @@ struct fx_ver_t;
 class fx_muxer_t
 {
 public:
-    static int execute(const int argc, const pal::char_t* argv[]);
+    static int execute(const pal::string_t& own_dir, const int argc, const pal::char_t* argv[]);
 private:
 	static pal::string_t resolve_fx_dir(const pal::string_t& muxer_path, runtime_config_t* runtime, const pal::string_t& app_path);
     static pal::string_t resolve_cli_version(const pal::string_t& global);

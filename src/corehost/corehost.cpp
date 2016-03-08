@@ -4,8 +4,9 @@
 #include "trace.h"
 #include "utils.h"
 #include "corehost.h"
+#include "fx_muxer.h"
 
-bool corehost_t::hostpolicy_exists_in_dir(const pal::string_t& lib_dir, pal::string_t* p_host_path)
+bool corehost_t::hostpolicy_exists_in_dir(const pal::string_t& lib_dir, pal::string_t* p_host_path = nullptr)
 {
 	pal::string_t host_path = lib_dir;
 	append_path(&host_path, LIBHOST_NAME);
@@ -14,7 +15,10 @@ bool corehost_t::hostpolicy_exists_in_dir(const pal::string_t& lib_dir, pal::str
 	{
 		return false;
 	}
-	*p_host_path = host_path;
+    if (p_host_path)
+    {
+        *p_host_path = host_path;
+    }
 	return true;
 }
 
@@ -41,15 +45,17 @@ int corehost_t::load_host_lib(const pal::string_t& lib_dir, pal::dll_t* h_host, 
 		: StatusCode::CoreHostEntryPointFailure;
 }
 
-int corehost_t::load_hostpolicy_and_execute(
-    const pal::string_t& resolved_dir,
+int corehost_t::execute_app(
+    const pal::string_t& policy_dir,
+    const pal::string_t& fx_dir,
+    const runtime_config_t* config,
     const int argc,
     const pal::char_t* argv[])
 {
 	pal::dll_t corehost;
 	corehost_main_fn host_main = nullptr;
 
-    int code = load_host_lib(resolved_dir, &corehost, &host_main);
+    int code = load_host_lib(policy_dir, &corehost, &host_main);
 
 	if (code != StatusCode::Success)
 	{
@@ -59,7 +65,7 @@ int corehost_t::load_hostpolicy_and_execute(
     return host_main(argc, argv);
 }
 
-bool corehost_t::hostpolicy_exists_in_svc(pal::string_t* resolved_path)
+bool corehost_t::hostpolicy_exists_in_svc(pal::string_t* resolved_dir)
 {
 #ifdef COREHOST_PACKAGE_SERVICING
 	pal::string_t svc_dir;
@@ -72,7 +78,11 @@ bool corehost_t::hostpolicy_exists_in_svc(pal::string_t* resolved_path)
 	append_path(&path, COREHOST_PACKAGE_NAME);
 	append_path(&path, COREHOST_PACKAGE_VERSION);
 	append_path(&path, COREHOST_PACKAGE_COREHOST_RELATIVE_DIR);
-	return hostpolicy_exists_in_dir(path, resolved_path);
+    if (hostpolicy_exists_in_dir(path))
+    {
+        resolved_dir->assign(path);
+    }
+    return true;
 #else
 	return false;
 #endif
@@ -86,27 +96,16 @@ int corehost_t::run(const int argc, const pal::char_t* argv[])
     switch (mode)
 	{
 	case Muxer:
-        return load_hostpolicy_and_execute(own_dir, argc, argv);
+        return fx_muxer_t().execute(own_dir, argc, argv);
 
 	case Framework:
-        {
-            pal::string_t resolved_dir;
-            pal::string_t fx_root = get_directory(get_directory(get_directory(own_dir)));
-            if (hostpolicy_exists_in_dir(fx_root, &resolved_dir))
-            {
-                return load_hostpolicy_and_execute(resolved_dir, argc, argv);
-            }
-        }
-        return StatusCode::CoreHostLibMissingFailure;
+        return execute_app(own_dir, own_dir, nullptr, argc, argv);
 
 	case Standalone:
         {
-            pal::string_t resolved_dir;
-            if (hostpolicy_exists_in_svc(&resolved_dir) ||
-                hostpolicy_exists_in_dir(own_dir, &resolved_dir))
-            {
-                return load_hostpolicy_and_execute(resolved_dir, argc, argv);
-            }
+            pal::string_t svc_dir;
+            return execute_app(
+                hostpolicy_exists_in_svc(&svc_dir) ? svc_dir : own_dir, _X(""), nullptr, argc, argv);
         }
         return StatusCode::CoreHostLibMissingFailure;
 

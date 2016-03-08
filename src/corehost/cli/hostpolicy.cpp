@@ -12,19 +12,6 @@
 #include "libhost.h"
 #include "runtime_config.h"
 
-pal::string_t get_runtime_config_json(const pal::string_t& app_path)
-{
-	auto name = get_filename_without_ext(app_path);
-	auto json = get_directory(app_path);
-	append_path(&json, name.c_str());
-	append_path(&json, _X(".runtimeconfig.json"));
-	if (pal::file_exists(json))
-	{
-		return json;
-	}
-	return pal::string_t();
-}
-
 int run(const pal::string_t& fx_dir, const runtime_config_t& config, const arguments_t& args)
 {
     // Load the deps resolver
@@ -196,8 +183,18 @@ int run(const pal::string_t& fx_dir, const runtime_config_t& config, const argum
     return exit_code;
 }
 
-int execute_app(const pal::string_t& fx_dir, runtime_config_t* runtime, const int argc, const pal::char_t* argv[])
+corehost_init_t* g_init = nullptr;
+
+SHARED_API int corehost_load(corehost_init_t* init)
 {
+    g_init = init;
+    return 0;
+}
+
+SHARED_API int corehost_main(const int argc, const pal::char_t* argv[])
+{
+    trace::setup();
+
     // Take care of arguments
     arguments_t args;
     if (!parse_arguments(argc, argv, args))
@@ -205,30 +202,21 @@ int execute_app(const pal::string_t& fx_dir, runtime_config_t* runtime, const in
         return LibHostStatusCode::LibHostInvalidArgs;
     }
 
-	const runtime_config_t& config = runtime
-								   ? *runtime
-								   : runtime_config_t(get_runtime_config_json(args.managed_application));
+    assert(g_init);
+    if (g_init->runtime_config())
+    {
+        return run(g_init->fx_dir(), *g_init->runtime_config(), args);
+    }
+    else
+    {
+        runtime_config_t config(get_runtime_config_json(args.managed_application));
+        return run(g_init->fx_dir(), config, args);
+    }
 
-    return run(fx_dir, config, args);
 }
 
-SHARED_API int corehost_main(const int argc, const pal::char_t* argv[])
+SHARED_API int corehost_unload()
 {
-    trace::setup();
-    pal::string_t own_dir;
-    switch (detect_operating_mode(argc, argv, &own_dir))
-    {
-    case Standalone:
-        return execute_app(_X(""), nullptr, argc, argv);
-
-    case Framework:
-        return execute_app(own_dir, nullptr, argc, argv);
-
-    case Muxer:
-        return fx_muxer_t::execute(argc, argv);
-
-    default:
-    case Invalid:
-        return LibHostStatusCode::LibHostInitFailure;
-    }
+    g_init = nullptr;
+    return 0;
 }
