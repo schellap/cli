@@ -22,7 +22,12 @@ bool corehost_t::hostpolicy_exists_in_dir(const pal::string_t& lib_dir, pal::str
 	return true;
 }
 
-int corehost_t::load_host_lib(const pal::string_t& lib_dir, pal::dll_t* h_host, corehost_main_fn* main_fn)
+int corehost_t::load_host_lib(
+    const pal::string_t& lib_dir,
+    pal::dll_t* h_host,
+    corehost_load_fn* load_fn,
+    corehost_main_fn* main_fn,
+    corehost_unload_fn* unload_fn)
 {
 	pal::string_t host_path;
 	if (!hostpolicy_exists_in_dir(lib_dir, &host_path))
@@ -37,10 +42,12 @@ int corehost_t::load_host_lib(const pal::string_t& lib_dir, pal::dll_t* h_host, 
 		return StatusCode::CoreHostLibLoadFailure;
 	}
 
-	// Obtain entrypoint symbol
+	// Obtain entrypoint symbols
+    *load_fn = (corehost_load_fn)pal::get_symbol(*h_host, "corehost_load");
 	*main_fn = (corehost_main_fn)pal::get_symbol(*h_host, "corehost_main");
+    *unload_fn = (corehost_unload_fn)pal::get_symbol(*h_host, "corehost_unload");
 
-	return (*main_fn != nullptr)
+	return (*main_fn) && (*load_fn) && (*unload_fn)
 		? StatusCode::Success
 		: StatusCode::CoreHostEntryPointFailure;
 }
@@ -54,15 +61,22 @@ int corehost_t::execute_app(
 {
 	pal::dll_t corehost;
 	corehost_main_fn host_main = nullptr;
+    corehost_load_fn host_load = nullptr;
+    corehost_unload_fn host_unload = nullptr;
 
-    int code = load_host_lib(policy_dir, &corehost, &host_main);
+    int code = load_host_lib(policy_dir, &corehost, &host_load, &host_main, &host_unload);
 
 	if (code != StatusCode::Success)
 	{
 		return code;
 	}
-
-    return host_main(argc, argv);
+    corehost_init_t init(fx_dir, config);
+    if ((code = host_load(&init)) == 0)
+    {
+        code = host_main(argc, argv);
+        (void) host_unload();
+    }
+    return code;
 }
 
 bool corehost_t::hostpolicy_exists_in_svc(pal::string_t* resolved_dir)

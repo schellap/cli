@@ -17,7 +17,9 @@ enum StatusCode
 	// Only append here, do not modify existing ones.
 };
 
+typedef int (*corehost_load_fn) (const corehost_init_t* init);
 typedef int (*corehost_main_fn) (const int argc, const pal::char_t* argv[]);
+typedef int (*corehost_unload_fn) ();
 
 class corehost_t
 {
@@ -33,7 +35,12 @@ public:
 
 private:
 
-	static int load_host_lib(const pal::string_t& lib_dir, pal::dll_t* h_host, corehost_main_fn* main_fn);
+	static int load_host_lib(
+        const pal::string_t& lib_dir,
+        pal::dll_t* h_host,
+        corehost_load_fn* load_fn,
+        corehost_main_fn* main_fn,
+        corehost_unload_fn* unload_fn);
 
 	static bool hostpolicy_exists_in_svc(pal::string_t* resolved_path);
 	static bool hostpolicy_exists_in_dir(const pal::string_t& lib_dir, pal::string_t* p_host_path);

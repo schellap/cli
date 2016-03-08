@@ -268,7 +268,6 @@ void deps_resolver_t::resolve_tpa_list(
         // Is this entry present locally?
         else if (m_app_and_fx_assemblies.count(entry.asset_name))
         {
-            // TODO: case insensitive
             add_tpa_asset(entry.asset_name, m_app_and_fx_assemblies.find(entry.asset_name)->second, &items, output);
         }
         // Is this entry present in the package restore dir?
