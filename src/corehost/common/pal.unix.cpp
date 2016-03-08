@@ -22,6 +22,12 @@
 
 pal::string_t pal::to_string(int value) { return std::to_string(value); }
 
+pal::string_t pal::to_lower(const pal::string_t& in)
+{
+	pal::string_t ret = in;
+	std::transform(ret.begin(), ret.end(), ret.begin(), ::tolower);
+}
+
 bool pal::getcwd(pal::string_t* recv)
 {
     recv->clear();

@@ -244,12 +244,12 @@ void deps_resolver_t::resolve_tpa_list(
 
     add_mscorlib_to_tpa(clr_dir, &items, output);
 
-    for (const deps_entry_t& entry : m_deps.get_entries(_X("runtime")))
+    auto process_entry = [&](const deps_entry_t& entry)
     {
         // Is this asset a "runtime" type?
         if (items.count(entry.asset_name))
         {
-            continue;
+			return;
         }
 
         pal::string_t candidate;
@@ -268,7 +268,7 @@ void deps_resolver_t::resolve_tpa_list(
         // Is this entry present locally?
         else if (m_app_and_fx_assemblies.count(entry.asset_name))
         {
-            WORKING HERE FOR CASING tolower.
+            // TODO: case insensitive
             add_tpa_asset(entry.asset_name, m_app_and_fx_assemblies.find(entry.asset_name)->second, &items, output);
         }
         // Is this entry present in the package restore dir?
@@ -276,7 +276,12 @@ void deps_resolver_t::resolve_tpa_list(
         {
             add_tpa_asset(entry.asset_name, candidate, &items, output);
         }
-    }
+	};
+	
+	const auto& deps_entries = m_deps.get_entries(_X("runtime"));
+	std::for_each(deps_entries.begin(), deps_entries.end(), process_entry);
+	const auto& fx_entries = m_fx_deps.get_entries(_X("runtime"));
+	std::for_each(fx_entries.begin(), fx_entries.end(), process_entry);
 
     // Finally, if the deps file wasn't present or has missing entries, then
     // add the app local assemblies to the TPA.
@@ -330,9 +335,12 @@ void deps_resolver_t::resolve_probe_dirs(
 
     std::set<pal::string_t> items;
 
+	const auto& entries = m_deps.get_entries(asset_type);
+	const auto& fx_entries = m_fx_deps.get_entries(asset_type);
+
     // Fill the "output" with serviced DLL directories if they are serviceable
     // and have an entry present.
-    for (const deps_entry_t& entry : m_deps.get_entries(asset_type))
+    auto add_serviced_entry = [&](const deps_entry_t& entry)
     {
         pal::string_t redirection_path;
         if (entry.is_serviceable && entry.library_type == _X("Package") &&
@@ -340,20 +348,25 @@ void deps_resolver_t::resolve_probe_dirs(
         {
             add_unique_path(asset_type, action(redirection_path), &items, output);
         }
-    }
+	};
+
+	std::for_each(entries.begin(), entries.end(), add_serviced_entry);
+	std::for_each(fx_entries.begin(), fx_entries.end(), add_serviced_entry);
 
     pal::string_t candidate;
 
     // Take care of the secondary cache path
     if (!package_cache_dir.empty())
     {
-        for (const deps_entry_t& entry : m_deps.get_entries(asset_type))
+        auto add_package_cache_entry = [&](const deps_entry_t& entry)
         {
             if (entry.to_hash_matched_path(package_cache_dir, &candidate))
             {
                 add_unique_path(asset_type, action(candidate), &items, output);
             }
-        }
+		};
+		std::for_each(entries.begin(), entries.end(), add_package_cache_entry);
+		std::for_each(fx_entries.begin(), fx_entries.end(), add_package_cache_entry);
     }
 
     // App local path
@@ -368,13 +381,15 @@ void deps_resolver_t::resolve_probe_dirs(
     // Take care of the package restore path
     if (!package_dir.empty())
     {
-        for (const deps_entry_t& entry : m_deps.get_entries(asset_type))
+        auto add_packages_entry = [&](const deps_entry_t& entry)
         {
             if (entry.asset_type == asset_type && entry.to_full_path(package_dir, &candidate))
             {
                 add_unique_path(asset_type, action(candidate), &items, output);
             }
-        }
+		};
+		std::for_each(entries.begin(), entries.end(), add_packages_entry);
+		std::for_each(fx_entries.begin(), fx_entries.end(), add_packages_entry);
     }
 
     // CLR path
