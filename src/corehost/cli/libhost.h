@@ -1,6 +1,9 @@
 // Copyright (c) .NET Foundation and contributors. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+#ifndef __LIBHOST_H__
+#define __LIBHOST_H__
+
 #define LIBHOST_NAME MAKE_LIBNAME("hostpolicy")
 
 enum HostMode
@@ -55,3 +58,5 @@ public:
 
 pal::string_t get_runtime_config_json(const pal::string_t& app_path);
 HostMode detect_operating_mode(const int argc, const pal::char_t* argv[], pal::string_t* own_dir = nullptr);
+
+#endif // __LIBHOST_H__

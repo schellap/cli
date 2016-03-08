@@ -15,6 +15,7 @@ pal::string_t pal::to_lower(const pal::string_t& in)
 {
 	pal::string_t ret = in;
 	std::transform(ret.begin(), ret.end(), ret.begin(), ::towlower);
+	return ret;
 }
 
 pal::string_t pal::to_string(int value)
