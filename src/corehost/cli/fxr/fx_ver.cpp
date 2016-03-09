@@ -78,6 +78,20 @@ int fx_ver_t::compare(const fx_ver_t&a, const fx_ver_t& b, bool ignore_build)
         ;
 }
 
+bool try_stou(const pal::string_t& str, unsigned* num)
+{
+    if (str.empty())
+    {
+        return false;
+    }
+    if (str.find_first_not_of(_X("0123456789")) != pal::string_t::npos)
+    {
+        return false;
+    }
+    *num = (unsigned) std::stoul(str);
+    return true;
+}
+
 /* static */
 bool fx_ver_t::parse(const pal::string_t& ver, fx_ver_t* fx_ver, bool parse_only_production)
 {
@@ -87,36 +101,35 @@ bool fx_ver_t::parse(const pal::string_t& ver, fx_ver_t* fx_ver, bool parse_only
     {
         return false;
     }
-	auto crap = ver.find_first_not_of(_X("0123456789"), maj_start, maj_sep);
-	if (ver.find_first_not_of(_X("0123456789"), maj_start, maj_sep) != pal::string_t::npos)
-	{
-		return false;
-	}
-
-	int major = std::stoi(ver.substr(maj_start, maj_sep));
+    unsigned major = 0;
+    if (!try_stou(ver.substr(maj_start, maj_sep), &major))
+    {
+        return false;
+    }
 
     size_t min_start = maj_sep + 1;
-    size_t min_sep = ver.find(min_start, _X('.'));
+    size_t min_sep = ver.find(_X('.'), min_start);
     if (min_sep == pal::string_t::npos)
     {
         return false;
     }
-	if (ver.find_first_not_of(_X("0123456789"), min_start, min_sep) != pal::string_t::npos)
-	{
-		return false;
-	}
-    int minor = std::stoi(ver.substr(min_start, min_sep - min_start));
 
+    unsigned minor = 0;
+    if (!try_stou(ver.substr(min_start, min_sep - min_start), &minor))
+    {
+        return false;
+    }
+
+    unsigned patch = 0;
     size_t pat_start = min_sep + 1;
     size_t pat_sep = ver.find_first_of(_X(".+"), pat_start);
     if (pat_sep == pal::string_t::npos)
     {
-		if (ver.find_first_not_of(_X("0123456789"), pat_start) != pal::string_t::npos)
-		{
-			return false;
-		}
+        if (!try_stou(ver.substr(pat_start), &patch))
+        {
+            return false;
+        }
 
-        int patch = std::stoi(ver.substr(pat_start));
         *fx_ver = fx_ver_t(major, minor, patch);
         return true;
     }
@@ -127,26 +140,19 @@ bool fx_ver_t::parse(const pal::string_t& ver, fx_ver_t* fx_ver, bool parse_only
         return false;
     }
 
-	if (ver.find_first_not_of(_X("0123456789"), pat_start, pat_sep - pat_start) != pal::string_t::npos)
-	{
-		return false;
-	}
-    int patch = std::stoi(ver.substr(pat_start, pat_sep - pat_start));
-    
+    if (!try_stou(ver.substr(pat_start, pat_sep - pat_start), &patch))
+    {
+        return false;
+    }
+
     int last_sep = pat_sep;
-    pal::string_t pre = _X("");
     if (ver[pat_sep] == _X('.'))
     {
         size_t pre_start = pat_sep + 1;
         size_t pre_sep = ver.find(pre_start, _X('+'));
-		if (ver.find_first_not_of(_X("0123456789"), pre_start, pre_sep - pre_start) != pal::string_t::npos)
-		{
-			return false;
-		}
-		pre = std::stoi(ver.substr(pre_start, pre_sep - pre_start));
         if (pre_sep == pal::string_t::npos)
         {
-            *fx_ver = fx_ver_t(major, minor, patch, pre);
+            *fx_ver = fx_ver_t(major, minor, patch, ver.substr(pre_start, pre_sep - pre_start));
             return true;
         }
         last_sep = pre_sep;
@@ -158,7 +164,7 @@ bool fx_ver_t::parse(const pal::string_t& ver, fx_ver_t* fx_ver, bool parse_only
         major,
         minor,
         patch,
-        pre,
+        _X(""),
         ver.substr(build_start));
     return true;
 }
