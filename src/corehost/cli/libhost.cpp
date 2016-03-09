@@ -40,6 +40,11 @@ HostMode detect_operating_mode(const int argc, const pal::char_t* argv[], pal::s
 		pal::string_t own_deps_json = own_dir;
 		pal::string_t own_deps_filename = strip_file_ext(own_name) + _X(".deps.json");
 		append_path(&own_deps_json, own_deps_filename.c_str());
+		if (trace::is_enabled())
+		{
+			trace::info(_X("CoreCLR present in own dir [%s] and [%s] file present=%d"),
+				own_dir.c_str(), own_deps_filename.c_str(), pal::file_exists(own_deps_json));
+		}
 		return (pal::file_exists(own_deps_json)) ? HostMode::Standalone : HostMode::Framework;
 	}
 	else

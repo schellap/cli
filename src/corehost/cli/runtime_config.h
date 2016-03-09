@@ -8,12 +8,16 @@ class runtime_config_t
 public:
 	runtime_config_t(const pal::string_t& path);
     bool is_valid() { return m_valid; }
-	const pal::string_t& get_fx_version();
-	bool get_fx_roll_fwd();
+	const pal::string_t& get_fx_version() const;
+	const pal::string_t& get_fx_name() const;
+	bool get_fx_roll_fwd() const;
 private:
 	bool ensure_parsed();
+	
+	pal::string_t m_fx_name;
     pal::string_t m_fx_ver;
 	bool m_fx_roll_fwd;
-    pal::string_t m_path;
+
+	pal::string_t m_path;
     bool m_valid;
 };

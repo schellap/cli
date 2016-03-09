@@ -42,29 +42,37 @@ pal::string_t corehost_t::resolve_fxr_path(const pal::string_t& own_dir)
     append_path(&fxr_dir, _X("fxr"));
     if (pal::directory_exists(fxr_dir))
     {
+		trace::info(_X("Reading fx resolver directory=[%s]"), fxr_dir.c_str());
+
         std::vector<pal::string_t> list;
         pal::readdir(fxr_dir, &list);
 
         fx_ver_t max_ver(-1, -1, -1);
         for (const auto& dir : list)
         {
-            pal::string_t dir = get_filename(dir);
+			trace::info(_X("Considering fxr version=[%s]..."), dir.c_str());
+
+			pal::string_t ver = get_filename(dir);
 
             fx_ver_t fx_ver(-1, -1, -1);
-            if (fx_ver_t::parse(dir, &fx_ver, true))
+            if (fx_ver_t::parse(ver, &fx_ver, true))
             {
                 max_ver = max(max_ver, fx_ver);
             }
         }
 
-        append_path(&fxr_dir, max_ver.as_str().c_str());
-    }   
+		pal::string_t max_ver_str = max_ver.as_str();
+        append_path(&fxr_dir, max_ver_str.c_str());
+		trace::info(_X("Detected latest fxr version=[%s]..."), fxr_dir.c_str());
+	}   
 
     const pal::string_t* dirs[] = { &fxr_dir, &own_dir };
     for (const auto& dir : dirs)
     {
+		trace::info(_X("Considering fxr dir=[%s]..."), fxr_dir.c_str());
         if (policy_load_t::library_exists_in_dir(*dir, LIBFXR_NAME, &fxr_path))
         {
+			trace::info(_X("Resolved fxr [%s]..."), fxr_path.c_str());
             return fxr_path;
         }
     }
@@ -97,20 +105,25 @@ int corehost_t::run(const int argc, const pal::char_t* argv[])
     switch (mode)
 	{
 	case Muxer:
-        return resolve_fx_and_execute_app(own_dir, argc, argv);
+		trace::info(_X("Host operating in Muxer mode"));
+		return resolve_fx_and_execute_app(own_dir, argc, argv);
 
 	case Framework:
-        return policy_load_t::execute_app(own_dir, own_dir, nullptr, argc, argv);
+		trace::info(_X("Host operating from framework %s"), own_dir.c_str());
+		return policy_load_t::execute_app(own_dir, own_dir, nullptr, argc, argv);
 
 	case Standalone:
         {
-            pal::string_t svc_dir;
+			trace::info(_X("Host operating from standalone app dir %s"), own_dir.c_str());
+
+			pal::string_t svc_dir;
             return policy_load_t::execute_app(
                 hostpolicy_exists_in_svc(&svc_dir) ? svc_dir : own_dir, _X(""), nullptr, argc, argv);
         }
         return StatusCode::CoreHostLibMissingFailure;
 
 	default:
+		trace::error(_X("Unknown mode detected or could not resolve the mode."));
 		return StatusCode::CoreHostResolveModeFailure;
 	}
 }

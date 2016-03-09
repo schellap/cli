@@ -37,7 +37,7 @@ else()
 endif()
 
 add_executable(corehost ${SOURCES})
-
+install(TARGETS corehost DESTINATION bin)
 add_definitions(-D_NO_ASYNCRTIMP)
 add_definitions(-D_NO_PPLXIMP)
 

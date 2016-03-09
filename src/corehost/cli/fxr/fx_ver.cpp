@@ -87,7 +87,13 @@ bool fx_ver_t::parse(const pal::string_t& ver, fx_ver_t* fx_ver, bool parse_only
     {
         return false;
     }
-    int major = std::stoi(ver.substr(maj_start, maj_sep));
+	auto crap = ver.find_first_not_of(_X("0123456789"), maj_start, maj_sep);
+	if (ver.find_first_not_of(_X("0123456789"), maj_start, maj_sep) != pal::string_t::npos)
+	{
+		return false;
+	}
+
+	int major = std::stoi(ver.substr(maj_start, maj_sep));
 
     size_t min_start = maj_sep + 1;
     size_t min_sep = ver.find(min_start, _X('.'));
@@ -95,12 +101,21 @@ bool fx_ver_t::parse(const pal::string_t& ver, fx_ver_t* fx_ver, bool parse_only
     {
         return false;
     }
+	if (ver.find_first_not_of(_X("0123456789"), min_start, min_sep) != pal::string_t::npos)
+	{
+		return false;
+	}
     int minor = std::stoi(ver.substr(min_start, min_sep - min_start));
 
     size_t pat_start = min_sep + 1;
     size_t pat_sep = ver.find_first_of(_X(".+"), pat_start);
     if (pat_sep == pal::string_t::npos)
     {
+		if (ver.find_first_not_of(_X("0123456789"), pat_start) != pal::string_t::npos)
+		{
+			return false;
+		}
+
         int patch = std::stoi(ver.substr(pat_start));
         *fx_ver = fx_ver_t(major, minor, patch);
         return true;
@@ -112,6 +127,10 @@ bool fx_ver_t::parse(const pal::string_t& ver, fx_ver_t* fx_ver, bool parse_only
         return false;
     }
 
+	if (ver.find_first_not_of(_X("0123456789"), pat_start, pat_sep - pat_start) != pal::string_t::npos)
+	{
+		return false;
+	}
     int patch = std::stoi(ver.substr(pat_start, pat_sep - pat_start));
     
     int last_sep = pat_sep;
@@ -120,6 +139,10 @@ bool fx_ver_t::parse(const pal::string_t& ver, fx_ver_t* fx_ver, bool parse_only
     {
         size_t pre_start = pat_sep + 1;
         size_t pre_sep = ver.find(pre_start, _X('+'));
+		if (ver.find_first_not_of(_X("0123456789"), pre_start, pre_sep - pre_start) != pal::string_t::npos)
+		{
+			return false;
+		}
 		pre = std::stoi(ver.substr(pre_start, pre_sep - pre_start));
         if (pre_sep == pal::string_t::npos)
         {
@@ -132,9 +155,9 @@ bool fx_ver_t::parse(const pal::string_t& ver, fx_ver_t* fx_ver, bool parse_only
     assert(ver[last_sep] == _X('+'));
     size_t build_start = last_sep + 1;
     *fx_ver = fx_ver_t(
-        std::stoi(ver.substr(maj_start, maj_sep)),
-        std::stoi(ver.substr(min_start, min_sep - min_start)),
-        std::stoi(ver.substr(pat_start, pat_sep - pat_start)),
+        major,
+        minor,
+        patch,
         pre,
         ver.substr(build_start));
     return true;

@@ -18,26 +18,28 @@ typedef web::json::value json_value;
 
 pal::string_t fx_muxer_t::resolve_fx_dir(const pal::string_t& muxer_path, runtime_config_t* runtime, const pal::string_t& app_path)
 {
-	auto specified_fx = runtime->get_fx_version();
-	auto roll_fwd = runtime->get_fx_roll_fwd();
+	const auto fx_name = runtime->get_fx_name();
+	const auto fx_ver = runtime->get_fx_version();
+	const auto roll_fwd = runtime->get_fx_roll_fwd();
+
 	fx_ver_t specified(-1, -1, -1);
-	if (!fx_ver_t::parse(specified_fx, &specified, true))
+	if (!fx_ver_t::parse(fx_ver, &specified, true))
 	{
 		return pal::string_t();
 	}
 
-	std::vector<pal::string_t> list;
 	auto fx_dir = get_directory(muxer_path);
 	append_path(&fx_dir, _X("Shared"));
-	append_path(&fx_dir, _X("NetCoreApp"));
+	append_path(&fx_dir, fx_name.c_str());
 
 	// If not roll forward or if pre-release, just return.
 	if (!roll_fwd || !specified.pre.empty())
 	{
-		append_path(&fx_dir, specified_fx.c_str());
+		append_path(&fx_dir, fx_ver.c_str());
 	}
 	else
 	{
+		std::vector<pal::string_t> list;
 		pal::readdir(fx_dir, &list);
 		fx_ver_t max_specified = specified;
 		for (const auto& version : list)
@@ -50,7 +52,8 @@ pal::string_t fx_muxer_t::resolve_fx_dir(const pal::string_t& muxer_path, runtim
 				max_specified.patch = max(ver.patch, max_specified.patch);
 			}
 		}
-		append_path(&fx_dir, max_specified.as_str().c_str());
+		pal::string_t max_specified_str = max_specified.as_str();
+		append_path(&fx_dir, max_specified_str.c_str());
 	}
 	return pal::directory_exists(fx_dir) ? fx_dir : pal::string_t();
 }
@@ -73,17 +76,16 @@ pal::string_t fx_muxer_t::resolve_cli_version(const pal::string_t& global_json)
     {
         const auto& json = json_value::parse(file);
         const auto& sdk_ver = json.get(_X("sdkVersion"));
-        const auto& autoUpgrade = json.get(_X("sdkVersion"));
         if (sdk_ver.is_null())
         {
             return retval;
         }
-        return sdk_ver.as_string();
+        retval = sdk_ver.as_string();
     }
     catch (...)
     {
-        return false;
     }
+	return retval;
 }
 
 bool fx_muxer_t::resolve_sdk_dotnet_path(const pal::string_t& own_dir, pal::string_t* cli_sdk)
@@ -139,7 +141,8 @@ bool fx_muxer_t::resolve_sdk_dotnet_path(const pal::string_t& own_dir, pal::stri
 				max_ver = max(ver, max_ver);
             }
         }
-		append_path(&sdk_path, max_ver.as_str().c_str());
+		pal::string_t max_ver_str = max_ver.as_str();
+		append_path(&sdk_path, max_ver_str.c_str());
 		if (pal::directory_exists(sdk_path))
 		{
 			retval = sdk_path;
@@ -199,5 +202,6 @@ int fx_muxer_t::execute(const int argc, const pal::char_t* argv[])
 
 SHARED_API int hostfxr_main(const int argc, const pal::char_t* argv[])
 {
+	trace::setup();
     return fx_muxer_t().execute(argc, argv);
 }

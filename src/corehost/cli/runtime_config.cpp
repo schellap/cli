@@ -16,7 +16,7 @@ runtime_config_t::runtime_config_t(const pal::string_t& path)
 	m_valid = ensure_parsed();
 } 
 
-void parse_fx(const json_value& opts, pal::string_t* version, bool* roll_fwd)
+void parse_fx(const json_value& opts, pal::string_t* name, pal::string_t* version, bool* roll_fwd)
 {
 	version->clear();
 	*roll_fwd = true;
@@ -29,8 +29,8 @@ void parse_fx(const json_value& opts, pal::string_t* version, bool* roll_fwd)
 	{
 		return;
 	}
-	auto name = framework.get(_X("name"));
-	if (name.as_string() != _X("Microsoft.DotNetCore"))
+	*name = framework.get(_X("name")).as_string();
+	if (pal::to_lower(*name) != _X("netcoreapp"))
 	{
 		return;
 	}
@@ -64,7 +64,7 @@ bool runtime_config_t::ensure_parsed()
 	{
 		const auto& json = json_value::parse(file);
 		const auto& opts = json.get(_X("runtimeOptions"));
-		parse_fx(opts, &m_fx_ver, &m_fx_roll_fwd);
+		parse_fx(opts, &m_fx_name, &m_fx_ver, &m_fx_roll_fwd);
 	}
 	catch (...)
 	{
@@ -73,13 +73,19 @@ bool runtime_config_t::ensure_parsed()
 	return true;
 }
 
-const pal::string_t& runtime_config_t::get_fx_version()
+const pal::string_t& runtime_config_t::get_fx_name() const
+{
+	assert(m_valid);
+	return m_fx_name;
+}
+
+const pal::string_t& runtime_config_t::get_fx_version() const
 {
 	assert(m_valid);
     return m_fx_ver;
 }
 
-bool runtime_config_t::get_fx_roll_fwd()
+bool runtime_config_t::get_fx_roll_fwd() const
 {
 	assert(m_valid);
 	return m_fx_roll_fwd;
