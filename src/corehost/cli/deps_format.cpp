@@ -11,7 +11,7 @@
 #include <cassert>
 #include <functional>
 
-const std::array<pal::char_t*, deps_json_t::NUM_ASSET_TYPES> deps_json_t::s_known_asset_types = {
+const std::array<pal::char_t*, deps_entry_t::asset_types::count> deps_json_t::s_known_asset_types = {
 	_X("runtime"), _X("resources"), _X("native") };
 
 bool deps_json_t::load_portable(const json_value& json, const pal::string_t& target_name, const rid_fallback_graph_t& rid_fallback_graph)
@@ -26,6 +26,7 @@ bool deps_json_t::load_portable(const json_value& json, const pal::string_t& tar
         {
             continue;
         }
+
         const auto& asset_types = iter->second.as_object();
         for (int i = 0; i < s_known_asset_types.size(); ++i)
         {
@@ -189,7 +190,19 @@ void deps_json_t::reconcile_libraries_with_targets(
                 // TODO: Deps file does not follow spec. It uses '\\', should use '/'
                 replace_char(&entry.relative_path, _X('\\'), _X('/'));
 
-                m_deps_entries.push_back(entry);
+                m_deps_entries[i].push_back(entry);
+
+                if (i == deps_entry_t::asset_types::native &&
+                    entry.asset_name == LIBCORECLR_FILENAME)
+                {
+                    m_coreclr_index = m_deps_entries[i].size() - 1;
+                    trace::verbose(_X("Found coreclr from deps %d [%s, %s, %s]"),
+                        m_coreclr_index,
+                        entry.library_name.c_str(),
+                        entry.library_version.c_str(),
+                        entry.relative_path.c_str());
+                }
+
             }
         }
     }

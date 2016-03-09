@@ -12,6 +12,7 @@
 #include "runtime_config.h"
 #include "cpprest/json.h"
 #include "corehost.h"
+#include "policy_load.h"
 
 typedef web::json::value json_value;
 
@@ -149,9 +150,19 @@ bool fx_muxer_t::resolve_sdk_dotnet_path(const pal::string_t& own_dir, pal::stri
 }
 
 /* static */
-int fx_muxer_t::execute(const pal::string_t& own_dir, int argc, const pal::char_t* argv[])
+int fx_muxer_t::execute(const int argc, const pal::char_t* argv[])
 {
-	pal::string_t app_path = pal::string_t(argv[1]);
+    pal::string_t app_path;
+
+    // Get the full name of the application
+    if (!pal::get_own_executable_path(&app_path) || !pal::realpath(&app_path))
+    {
+        trace::error(_X("Failed to locate current executable"));
+        return LibHostStatusCode::LibHostCurExeFindFailure;
+    }
+
+    auto own_dir = get_directory(app_path);
+
 	runtime_config_t config(get_runtime_config_json(app_path));
     if (ends_with(app_path, _X(".dll"), false))
     {
@@ -161,7 +172,7 @@ int fx_muxer_t::execute(const pal::string_t& own_dir, int argc, const pal::char_
         }
 
         pal::string_t fx_dir = resolve_fx_dir(own_dir, &config, app_path);
-        return corehost_t::execute_app(fx_dir, fx_dir, &config, argc, argv);
+        return policy_load_t::execute_app(fx_dir, fx_dir, &config, argc, argv);
     }
     else
     {
@@ -181,8 +192,12 @@ int fx_muxer_t::execute(const pal::string_t& own_dir, int argc, const pal::char_
             new_argv[1] = sdk_dotnet.c_str();
 
             assert(ends_with(sdk_dotnet, _X(".dll"), false));
-            return corehost_t::execute_app(fx_dir, _X(""), &config, new_argv.size(), new_argv.data());
+            return policy_load_t::execute_app(fx_dir, _X(""), &config, new_argv.size(), new_argv.data());
         }
     }
 }
 
+SHARED_API int hostfxr_main(const int argc, const pal::char_t* argv[])
+{
+    return fx_muxer_t().execute(argc, argv);
+}

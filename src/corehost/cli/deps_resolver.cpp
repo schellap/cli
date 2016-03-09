@@ -233,6 +233,21 @@ void deps_resolver_t::resolve_tpa_list(
         const pal::string_t& clr_dir,
         pal::string_t* output)
 {
+    pal::string_t ni_package_cache_dir;
+    if (package_cache_dir.empty())
+    {
+        ni_package_cache_dir = package_cache_dir;
+        append_path(&ni_package_cache_dir, get_arch());
+    }
+
+    pal::string_t ni_package_dir;
+    if (package_dir.empty())
+    {
+        ni_package_dir = package_dir;
+        append_path(&ni_package_dir, get_arch());
+    }
+
+
     // Obtain the local assemblies in the app dir.
     get_dir_assemblies(app_dir, _X("local"), &m_app_and_fx_assemblies);
     if (!m_fx_dir.empty())
@@ -260,7 +275,12 @@ void deps_resolver_t::resolve_tpa_list(
         {
             add_tpa_asset(entry.asset_name, candidate, &items, output);
         }
-        // Is this entry present in the secondary package cache?
+        // Is an NI image for this entry present in the secondary package cache?
+        else if (entry.to_hash_matched_path(ni_package_cache_dir, &candidate))
+        {
+            add_tpa_asset(entry.asset_name, candidate, &items, output);
+        }
+        // Is this entry present in the secondary package cache?  (note: no .ni extension)
         else if (entry.to_hash_matched_path(package_cache_dir, &candidate))
         {
             add_tpa_asset(entry.asset_name, candidate, &items, output);
@@ -270,6 +290,11 @@ void deps_resolver_t::resolve_tpa_list(
         {
             add_tpa_asset(entry.asset_name, m_app_and_fx_assemblies.find(entry.asset_name)->second, &items, output);
         }
+        // Is an NI image for this entry present in the package cache? (note: no .ni extension)
+        else if (entry.to_full_path(ni_package_dir, &candidate))
+        {
+            add_tpa_asset(entry.asset_name, candidate, &items, output);
+        }
         // Is this entry present in the package restore dir?
         else if (entry.to_full_path(package_dir, &candidate))
         {
@@ -277,9 +302,9 @@ void deps_resolver_t::resolve_tpa_list(
         }
 	};
 	
-	const auto& deps_entries = m_deps.get_entries(_X("runtime"));
+	const auto& deps_entries = m_deps.get_entries(deps_entry_t::asset_types::runtime);
 	std::for_each(deps_entries.begin(), deps_entries.end(), process_entry);
-	const auto& fx_entries = m_fx_deps.get_entries(_X("runtime"));
+	const auto& fx_entries = m_fx_deps.get_entries(deps_entry_t::asset_types::runtime);
 	std::for_each(fx_entries.begin(), fx_entries.end(), process_entry);
 
     // Finally, if the deps file wasn't present or has missing entries, then
@@ -331,11 +356,11 @@ void deps_resolver_t::resolve_probe_dirs(
         return get_directory(str);
     };
     std::function<pal::string_t(const pal::string_t&)>& action = (asset_type == _X("resources")) ? resources : native;
-
+    deps_entry_t::asset_types entry_type = (asset_type == _X("resources")) ? deps_entry_t::asset_types::resources : deps_entry_t::asset_types::native;
     std::set<pal::string_t> items;
 
-	const auto& entries = m_deps.get_entries(asset_type);
-	const auto& fx_entries = m_fx_deps.get_entries(asset_type);
+	const auto& entries = m_deps.get_entries(entry_type);
+	const auto& fx_entries = m_fx_deps.get_entries(entry_type);
 
     // Fill the "output" with serviced DLL directories if they are serviceable
     // and have an entry present.

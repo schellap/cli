@@ -10,6 +10,14 @@
 
 struct deps_entry_t
 {
+    enum asset_types
+    {
+        runtime = 0,
+        native,
+        resources,
+        count
+    };
+
     pal::string_t library_type;
     pal::string_t library_name;
     pal::string_t library_version;

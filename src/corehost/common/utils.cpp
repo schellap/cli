@@ -117,6 +117,16 @@ void replace_char(pal::string_t* path, pal::char_t match, pal::char_t repl)
     }
 }
 
+const pal::char_t* get_arch()
+{
+#if _TARGET_AMD64_
+    return _X("amd64");
+#elif _TARGET_X86_
+    return _X("x86");
+#else
+#error "Unknown target"
+#endif
+}
 
 pal::string_t get_own_rid()
 {

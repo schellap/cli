@@ -38,15 +38,22 @@ bool servicing_index_t::find_redirection(
     auto iter = m_redirections.find(stream.str());
     if (iter != m_redirections.end())
     {
-        pal::string_t full_path = m_patch_root;
-        append_path(&full_path, iter->second.c_str());
-        if (pal::file_exists(full_path))
+        pal::string_t paths[2] = { m_patch_root, m_patch_root };
+
+        // First prefer the architecture specific ngen image.
+        append_path(&paths[0], get_arch());
+
+        for (pal::string_t& full_path : paths)
         {
-            *redirection = full_path;
-            trace::verbose(_X("Servicing %s with %s"), stream.str().c_str(), redirection->c_str());
-            return true;
+            append_path(&full_path, iter->second.c_str());
+            if (pal::file_exists(full_path))
+            {
+                *redirection = full_path;
+                trace::verbose(_X("Servicing %s with %s"), stream.str().c_str(), redirection->c_str());
+                return true;
+            }
+            trace::verbose(_X("Serviced file %s doesn't exist"), full_path.c_str());
         }
-        trace::verbose(_X("Serviced file %s doesn't exist"), full_path.c_str());
     }
 
     trace::verbose(_X("Entry %s not serviced or file doesn't exist"), stream.str().c_str());

@@ -13,9 +13,8 @@
 
 class deps_json_t
 {
-    static const int NUM_ASSET_TYPES = 3;
     typedef web::json::value json_value;
-    typedef std::array<std::vector<pal::string_t>, NUM_ASSET_TYPES> vectors_t;
+    typedef std::array<std::vector<pal::string_t>, deps_entry_t::asset_types::count> vectors_t;
     typedef std::unordered_map<pal::string_t, vectors_t> str_to_vectors_map_t;
     typedef std::unordered_map<pal::string_t, std::vector<pal::string_t>> str_to_vector_map_t;
 
@@ -30,15 +29,38 @@ public:
     }
 
     deps_json_t(const pal::string_t& deps_path, const rid_fallback_graph_t& graph)
-        : m_valid(load(deps_path, graph))
+        : m_valid(false)
+        , m_coreclr_index(-1)
     {
+        m_valid = load(deps_path, graph);
     }
 
-    bool is_valid() { return m_valid; }
-	const std::vector<deps_entry_t>& get_entries(const pal::string_t& type);
-	bool has_coreclr_entry();
-	const deps_entry_t& get_coreclr_entry();
-    const rid_fallback_graph_t& get_rid_fallback_graph() { return m_rid_fallback_graph; }
+    const std::vector<deps_entry_t>& get_entries(deps_entry_t::asset_types type)
+    {
+        assert(type < deps_entry_t::asset_types::count);
+        return m_deps_entries[type];
+    }
+
+    bool has_coreclr_entry()
+    {
+        return m_coreclr_index >= 0;
+    }
+
+    const deps_entry_t& get_coreclr_entry()
+    {
+        assert(has_coreclr_entry());
+        return m_deps_entries[deps_entry_t::asset_types::native][m_coreclr_index];
+    }
+
+    bool is_valid()
+    {
+        return m_valid;
+    }
+
+    const rid_fallback_graph_t& get_rid_fallback_graph()
+    {
+        return m_rid_fallback_graph;
+    }
 
 private:
     bool load_standalone(const json_value& json, const pal::string_t& target_name);
@@ -52,10 +74,12 @@ private:
 
     bool perform_rid_fallback(portable_assets_t* portable_assets, const rid_fallback_graph_t& rid_fallback_graph);
 
-    static const std::array<pal::char_t*, NUM_ASSET_TYPES> s_known_asset_types;
+    static const std::array<pal::char_t*, deps_entry_t::asset_types::count> s_known_asset_types;
+
+    std::vector<deps_entry_t> m_deps_entries[deps_entry_t::asset_types::count];
 
     rid_fallback_graph_t m_rid_fallback_graph;
-    std::vector<deps_entry_t> m_deps_entries;
+    int m_coreclr_index;
     bool m_valid;
 };
 

@@ -17,4 +17,5 @@ void append_path(pal::string_t* path1, const pal::char_t* path2);
 bool coreclr_exists_in_dir(const pal::string_t& candidate);
 void replace_char(pal::string_t* path, pal::char_t match, pal::char_t repl);
 pal::string_t get_own_rid();
+const pal::char_t* get_arch();
 #endif

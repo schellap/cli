@@ -4,80 +4,11 @@
 #include "trace.h"
 #include "utils.h"
 #include "corehost.h"
-#include "fx_muxer.h"
+#include "fx_ver.h"
+#include "policy_load.h"
+#include <array>
 
-bool corehost_t::hostpolicy_exists_in_dir(const pal::string_t& lib_dir, pal::string_t* p_host_path = nullptr)
-{
-	pal::string_t host_path = lib_dir;
-	append_path(&host_path, LIBHOST_NAME);
-
-	if (!pal::file_exists(host_path))
-	{
-		return false;
-	}
-    if (p_host_path)
-    {
-        *p_host_path = host_path;
-    }
-	return true;
-}
-
-int corehost_t::load_host_lib(
-    const pal::string_t& lib_dir,
-    pal::dll_t* h_host,
-    corehost_load_fn* load_fn,
-    corehost_main_fn* main_fn,
-    corehost_unload_fn* unload_fn)
-{
-	pal::string_t host_path;
-	if (!hostpolicy_exists_in_dir(lib_dir, &host_path))
-	{
-		return StatusCode::CoreHostLibMissingFailure;
-	}
-
-	// Load library
-	if (!pal::load_library(host_path.c_str(), h_host))
-	{
-		trace::info(_X("Load library of %s failed"), host_path.c_str());
-		return StatusCode::CoreHostLibLoadFailure;
-	}
-
-	// Obtain entrypoint symbols
-    *load_fn = (corehost_load_fn)pal::get_symbol(*h_host, "corehost_load");
-	*main_fn = (corehost_main_fn)pal::get_symbol(*h_host, "corehost_main");
-    *unload_fn = (corehost_unload_fn)pal::get_symbol(*h_host, "corehost_unload");
-
-	return (*main_fn) && (*load_fn) && (*unload_fn)
-		? StatusCode::Success
-		: StatusCode::CoreHostEntryPointFailure;
-}
-
-int corehost_t::execute_app(
-    const pal::string_t& policy_dir,
-    const pal::string_t& fx_dir,
-    const runtime_config_t* config,
-    const int argc,
-    const pal::char_t* argv[])
-{
-	pal::dll_t corehost;
-	corehost_main_fn host_main = nullptr;
-    corehost_load_fn host_load = nullptr;
-    corehost_unload_fn host_unload = nullptr;
-
-    int code = load_host_lib(policy_dir, &corehost, &host_load, &host_main, &host_unload);
-
-	if (code != StatusCode::Success)
-	{
-		return code;
-	}
-    corehost_init_t init(fx_dir, config);
-    if ((code = host_load(&init)) == 0)
-    {
-        code = host_main(argc, argv);
-        (void) host_unload();
-    }
-    return code;
-}
+#define LIBFXR_NAME MAKE_LIBNAME("hostfxr")
 
 bool corehost_t::hostpolicy_exists_in_svc(pal::string_t* resolved_dir)
 {
@@ -92,7 +23,7 @@ bool corehost_t::hostpolicy_exists_in_svc(pal::string_t* resolved_dir)
 	append_path(&path, COREHOST_PACKAGE_NAME);
 	append_path(&path, COREHOST_PACKAGE_VERSION);
 	append_path(&path, COREHOST_PACKAGE_COREHOST_RELATIVE_DIR);
-    if (hostpolicy_exists_in_dir(path))
+    if (library_exists_in_dir(path, LIBHOST_NAME))
     {
         resolved_dir->assign(path);
     }
@@ -100,6 +31,62 @@ bool corehost_t::hostpolicy_exists_in_svc(pal::string_t* resolved_dir)
 #else
 	return false;
 #endif
+}
+
+pal::string_t corehost_t::resolve_fxr_path(const pal::string_t& own_dir)
+{
+    pal::string_t fxr_path;
+
+    pal::string_t fxr_dir = own_dir;
+    append_path(&fxr_dir, _X("dotnethost"));
+    append_path(&fxr_dir, _X("fxr"));
+    if (pal::directory_exists(fxr_dir))
+    {
+        std::vector<pal::string_t> list;
+        pal::readdir(fxr_dir, &list);
+
+        fx_ver_t max_ver(-1, -1, -1);
+        for (const auto& dir : list)
+        {
+            pal::string_t dir = get_filename(dir);
+
+            fx_ver_t fx_ver(-1, -1, -1);
+            if (fx_ver_t::parse(dir, &fx_ver, true))
+            {
+                max_ver = max(max_ver, fx_ver);
+            }
+        }
+
+        append_path(&fxr_dir, max_ver.as_str().c_str());
+    }   
+
+    const pal::string_t* dirs[] = { &fxr_dir, &own_dir };
+    for (const auto& dir : dirs)
+    {
+        if (policy_load_t::library_exists_in_dir(*dir, LIBFXR_NAME, &fxr_path))
+        {
+            return fxr_path;
+        }
+    }
+    return pal::string_t();
+}
+
+int corehost_t::resolve_fx_and_execute_app(const pal::string_t& own_dir, const int argc, const pal::char_t* argv[])
+{
+    pal::dll_t fxr;
+
+    pal::string_t fxr_path = resolve_fxr_path(own_dir);
+
+    // Load library
+    if (!pal::load_library(fxr_path.c_str(), &fxr))
+    {
+        trace::info(_X("Load library of %s failed"), fxr_path.c_str());
+        return StatusCode::CoreHostLibLoadFailure;
+    }
+
+    // Obtain entrypoint symbols
+    hostfxr_main_fn main_fn = (hostfxr_main_fn) pal::get_symbol(fxr, "hostfxr_main");
+    return main_fn(argc, argv);
 }
 
 int corehost_t::run(const int argc, const pal::char_t* argv[])
@@ -110,15 +97,15 @@ int corehost_t::run(const int argc, const pal::char_t* argv[])
     switch (mode)
 	{
 	case Muxer:
-        return fx_muxer_t().execute(own_dir, argc, argv);
+        return resolve_fx_and_execute_app(own_dir, argc, argv);
 
 	case Framework:
-        return execute_app(own_dir, own_dir, nullptr, argc, argv);
+        return policy_load_t::execute_app(own_dir, own_dir, nullptr, argc, argv);
 
 	case Standalone:
         {
             pal::string_t svc_dir;
-            return execute_app(
+            return policy_load_t::execute_app(
                 hostpolicy_exists_in_svc(&svc_dir) ? svc_dir : own_dir, _X(""), nullptr, argc, argv);
         }
         return StatusCode::CoreHostLibMissingFailure;
