@@ -212,7 +212,7 @@ void deps_json_t::reconcile_libraries_with_targets(
 // Load the deps file and parse its "entry" lines which contain the "fields" of
 // the entry. Populate an array of these entries.
 //
-bool deps_json_t::load(const pal::string_t& deps_path, const rid_fallback_graph_t& rid_fallback_graph)
+bool deps_json_t::load(bool portable, const pal::string_t& deps_path, const rid_fallback_graph_t& rid_fallback_graph)
 {
     // If file doesn't exist, then assume parsed.
     if (!pal::file_exists(deps_path))
@@ -231,9 +231,8 @@ bool deps_json_t::load(const pal::string_t& deps_path, const rid_fallback_graph_
     {
         const auto& json = json_value::parse(file);
 
-        const auto& runtime_target = json.at(_X("runtimeTarget")).as_object();
-        bool portable = runtime_target.at(_X("portable")).as_bool();
-        const pal::string_t& name = runtime_target.at(_X("name")).as_string();
+        const auto& runtime_target = json.at(_X("runtimeTarget"));
+        const pal::string_t& name = runtime_target.as_string();
 
         return (portable) ? load_portable(json, name, rid_fallback_graph) : load_standalone(json, name);
     }

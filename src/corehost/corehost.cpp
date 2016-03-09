@@ -128,6 +128,8 @@ int corehost_t::run(const int argc, const pal::char_t* argv[])
 	}
 }
 
+#include <cassert>
+
 #if defined(_WIN32)
 int __cdecl wmain(const int argc, const pal::char_t* argv[])
 #else

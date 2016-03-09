@@ -12,6 +12,7 @@ typedef web::json::value json_value;
 runtime_config_t::runtime_config_t(const pal::string_t& path)
 	: m_fx_roll_fwd(true)
 	, m_path(path)
+    , m_portable(false)
 {
 	m_valid = ensure_parsed();
 } 
@@ -89,4 +90,9 @@ bool runtime_config_t::get_fx_roll_fwd() const
 {
 	assert(m_valid);
 	return m_fx_roll_fwd;
+}
+
+bool runtime_config_t::get_portable() const
+{
+    return m_portable;
 }

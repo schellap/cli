@@ -11,6 +11,7 @@
 #include "deps_format.h"
 #include "deps_entry.h"
 #include "servicing_index.h"
+#include "runtime_config.h"
 
 // Probe paths to be resolved for ordering
 struct probe_paths_t
@@ -23,12 +24,13 @@ struct probe_paths_t
 class deps_resolver_t
 {
 public:
-    deps_resolver_t(const pal::string_t& fx_deps, const arguments_t& args)
+    deps_resolver_t(const pal::string_t& fx_deps, const runtime_config_t* config, const arguments_t& args)
         : m_svc(args.dotnet_servicing)
 		, m_fx_dir(get_directory(fx_deps))
         , m_coreclr_index(-1)
-        , m_fx_deps(fx_deps)
-        , m_deps(args.deps_path, m_fx_deps.get_rid_fallback_graph())
+        , m_fx_deps(false, fx_deps)
+        , m_deps(config->get_portable(), args.deps_path, m_fx_deps.get_rid_fallback_graph())
+        , m_portable(config->get_portable())
     {
         load();
     }
@@ -94,6 +96,9 @@ private:
 
     // Is the deps file valid
     bool m_deps_valid;
+
+    // Is the deps file portable app?
+    bool m_portable;
 };
 
 #endif // DEPS_RESOLVER_H

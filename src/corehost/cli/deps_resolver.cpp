@@ -286,9 +286,14 @@ void deps_resolver_t::resolve_tpa_list(
             add_tpa_asset(entry.asset_name, candidate, &items, output);
         }
         // Is this entry present locally?
-        else if (m_app_and_fx_assemblies.count(entry.asset_name))
+        else if (!m_portable && m_app_and_fx_assemblies.count(entry.asset_name))
         {
             add_tpa_asset(entry.asset_name, m_app_and_fx_assemblies.find(entry.asset_name)->second, &items, output);
+        }
+        // The app is portable so the asset should be picked up from relative subpath.
+        else if (m_portable && entry.to_full_path(app_dir, &candidate))
+        {
+            add_tpa_asset(entry.asset_name, candidate, &items, output);
         }
         // Is an NI image for this entry present in the package cache? (note: no .ni extension)
         else if (entry.to_full_path(ni_package_dir, &candidate))
@@ -303,9 +308,9 @@ void deps_resolver_t::resolve_tpa_list(
 	};
 	
 	const auto& deps_entries = m_deps.get_entries(deps_entry_t::asset_types::runtime);
-	std::for_each(deps_entries.begin(), deps_entries.end(), process_entry);
+    std::for_each(deps_entries.begin(), deps_entries.end(), process_entry);
 	const auto& fx_entries = m_fx_deps.get_entries(deps_entry_t::asset_types::runtime);
-	std::for_each(fx_entries.begin(), fx_entries.end(), process_entry);
+    std::for_each(fx_entries.begin(), fx_entries.end(), process_entry);
 
     // Finally, if the deps file wasn't present or has missing entries, then
     // add the app local assemblies to the TPA.
@@ -395,6 +400,18 @@ void deps_resolver_t::resolve_probe_dirs(
 
     // App local path
     add_unique_path(asset_type, app_dir, &items, output);
+
+    // For portable path, the app relative directory must be used.
+    if (m_portable)
+    {
+        std::for_each(entries.begin(), entries.end(), [&](const deps_entry_t& entry)
+        {
+            if (entry.asset_type == asset_type && entry.to_full_path(package_dir, &candidate))
+            {
+                add_unique_path(asset_type, action(candidate), &items, output);
+            }
+        });
+    }
 
     // FX path if present
     if (!m_fx_dir.empty())

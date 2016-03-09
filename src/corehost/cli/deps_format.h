@@ -23,16 +23,16 @@ class deps_json_t
     typedef std::unordered_map<pal::string_t, str_to_vectors_map_t> portable_assets_t;
 
 public:
-    deps_json_t(const pal::string_t& deps_path)
-        : deps_json_t(deps_path, m_rid_fallback_graph /* dummy */)
+    deps_json_t(bool portable, const pal::string_t& deps_path)
+        : deps_json_t(portable, deps_path, m_rid_fallback_graph /* dummy */)
     {
     }
 
-    deps_json_t(const pal::string_t& deps_path, const rid_fallback_graph_t& graph)
+    deps_json_t(bool portable, const pal::string_t& deps_path, const rid_fallback_graph_t& graph)
         : m_valid(false)
         , m_coreclr_index(-1)
     {
-        m_valid = load(deps_path, graph);
+        m_valid = load(portable, deps_path, graph);
     }
 
     const std::vector<deps_entry_t>& get_entries(deps_entry_t::asset_types type)
@@ -65,7 +65,7 @@ public:
 private:
     bool load_standalone(const json_value& json, const pal::string_t& target_name);
     bool load_portable(const json_value& json, const pal::string_t& target_name, const rid_fallback_graph_t& rid_fallback_graph);
-    bool load(const pal::string_t& deps_path, const rid_fallback_graph_t& rid_fallback_graph);
+    bool load(bool portable, const pal::string_t& deps_path, const rid_fallback_graph_t& rid_fallback_graph);
 
     void reconcile_libraries_with_targets(
 		const json_value& json,

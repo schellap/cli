@@ -50,7 +50,7 @@ pal::string_t fx_ver_t::as_str()
     stream << major << _X(".") << minor << _X(".") << patch;
     if (!pre.empty())
     {
-        stream << _X(".") << pre;
+        stream << pre;
     }
     if (!build.empty())
     {
@@ -92,8 +92,7 @@ bool try_stou(const pal::string_t& str, unsigned* num)
     return true;
 }
 
-/* static */
-bool fx_ver_t::parse(const pal::string_t& ver, fx_ver_t* fx_ver, bool parse_only_production)
+bool parse_internal(const pal::string_t& ver, fx_ver_t* fx_ver, bool parse_only_production)
 {
     size_t maj_start = 0;
     size_t maj_sep = ver.find(_X('.'));
@@ -122,7 +121,7 @@ bool fx_ver_t::parse(const pal::string_t& ver, fx_ver_t* fx_ver, bool parse_only
 
     unsigned patch = 0;
     size_t pat_start = min_sep + 1;
-    size_t pat_sep = ver.find_first_of(_X(".+"), pat_start);
+    size_t pat_sep = ver.find_first_not_of(_X("0123456789"), pat_start);
     if (pat_sep == pal::string_t::npos)
     {
         if (!try_stou(ver.substr(pat_start), &patch))
@@ -145,27 +144,25 @@ bool fx_ver_t::parse(const pal::string_t& ver, fx_ver_t* fx_ver, bool parse_only
         return false;
     }
 
-    int last_sep = pat_sep;
-    if (ver[pat_sep] == _X('.'))
+    size_t pre_start = pat_sep;
+    size_t pre_sep = ver.find(_X('+'), pre_start);
+    if (pre_sep == pal::string_t::npos)
     {
-        size_t pre_start = pat_sep + 1;
-        size_t pre_sep = ver.find(pre_start, _X('+'));
-        if (pre_sep == pal::string_t::npos)
-        {
-            *fx_ver = fx_ver_t(major, minor, patch, ver.substr(pre_start, pre_sep - pre_start));
-            return true;
-        }
-        last_sep = pre_sep;
+        *fx_ver = fx_ver_t(major, minor, patch, ver.substr(pre_start));
+        return true;
     }
-
-    assert(ver[last_sep] == _X('+'));
-    size_t build_start = last_sep + 1;
-    *fx_ver = fx_ver_t(
-        major,
-        minor,
-        patch,
-        _X(""),
-        ver.substr(build_start));
-    return true;
+    else
+    {
+        size_t build_start = pre_sep + 1;
+        *fx_ver = fx_ver_t(major, minor, patch, ver.substr(pre_start, pre_sep - pre_start), ver.substr(build_start));
+        return true;
+    }
 }
 
+/* static */
+bool fx_ver_t::parse(const pal::string_t& ver, fx_ver_t* fx_ver, bool parse_only_production)
+{
+    bool valid = parse_internal(ver, fx_ver, parse_only_production);
+    assert(!valid || fx_ver->as_str() == ver);
+    return valid;
+}

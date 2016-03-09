@@ -11,6 +11,8 @@ public:
 	const pal::string_t& get_fx_version() const;
 	const pal::string_t& get_fx_name() const;
 	bool get_fx_roll_fwd() const;
+    bool get_portable() const;
+
 private:
 	bool ensure_parsed();
 	
@@ -19,5 +21,6 @@ private:
 	bool m_fx_roll_fwd;
 
 	pal::string_t m_path;
+    bool m_portable;
     bool m_valid;
 };
