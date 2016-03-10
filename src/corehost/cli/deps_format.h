@@ -23,14 +23,19 @@ class deps_json_t
     typedef std::unordered_map<pal::string_t, str_to_vectors_map_t> portable_assets_t;
 
 public:
+    deps_json_t()
+        : m_valid(false)
+        , m_coreclr_index(-1)
+    {
+    }
+
     deps_json_t(bool portable, const pal::string_t& deps_path)
         : deps_json_t(portable, deps_path, m_rid_fallback_graph /* dummy */)
     {
     }
 
     deps_json_t(bool portable, const pal::string_t& deps_path, const rid_fallback_graph_t& graph)
-        : m_valid(false)
-        , m_coreclr_index(-1)
+        : deps_json_t()
     {
         m_valid = load(portable, deps_path, graph);
     }

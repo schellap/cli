@@ -9,12 +9,13 @@
 pal::string_t get_runtime_config_json(const pal::string_t& app_path)
 {
     auto name = get_filename_without_ext(app_path);
-    auto json = get_directory(app_path);
-    append_path(&json, name.c_str());
-    append_path(&json, _X(".runtimeconfig.json"));
-    if (pal::file_exists(json))
+    auto json_name = name + _X(".runtimeconfig.json");
+    auto json_path = get_directory(app_path);
+
+    append_path(&json_path, json_name.c_str());
+    if (pal::file_exists(json_path))
     {
-        return json;
+        return json_path;
     }
     return pal::string_t();
 }

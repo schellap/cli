@@ -90,15 +90,6 @@ void add_unique_path(
 } // end of anonymous namespace
 
 // -----------------------------------------------------------------------------
-// Load the deps file and parse its "entry" lines which contain the "fields" of
-// the entry. Populate an array of these entries.
-//
-bool deps_resolver_t::load()
-{
-	return m_deps.is_valid() && m_fx_deps.is_valid();
-}
-
-// -----------------------------------------------------------------------------
 // Load local assemblies by priority order of their file extensions and
 // unique-fied  by their simple name.
 //
@@ -135,7 +126,6 @@ void deps_resolver_t::get_dir_assemblies(
                 continue;
             }
 
-            // TODO: Do a case insensitive lookup.
             // Already added entry for this asset, by priority order skip this ext
             if (dir_assemblies->count(file_name))
             {
@@ -173,8 +163,8 @@ pal::string_t deps_resolver_t::resolve_coreclr_dir(
     trace::verbose(_X("Probing for CoreCLR in package cache=[%s]"), package_cache_dir.c_str());
     pal::string_t coreclr_cache;
     if (!package_cache_dir.empty() &&
-        m_deps.has_coreclr_entry() &&
-        m_deps.get_coreclr_entry().to_hash_matched_path(package_cache_dir, &coreclr_cache))
+        m_deps->has_coreclr_entry() &&
+        m_deps->get_coreclr_entry().to_hash_matched_path(package_cache_dir, &coreclr_cache))
     {
         return get_directory(coreclr_cache);
     }
@@ -190,8 +180,8 @@ pal::string_t deps_resolver_t::resolve_coreclr_dir(
     trace::verbose(_X("Probing for CoreCLR in packages=[%s]"), package_dir.c_str());
     pal::string_t coreclr_package;
     if (!package_dir.empty() &&
-        m_deps.has_coreclr_entry() &&
-        m_deps.get_coreclr_entry().to_full_path(package_dir, &coreclr_package))
+        m_deps->has_coreclr_entry() &&
+        m_deps->get_coreclr_entry().to_full_path(package_dir, &coreclr_package))
     {
         return get_directory(coreclr_package);
     }
@@ -233,6 +223,8 @@ void deps_resolver_t::resolve_tpa_list(
         const pal::string_t& clr_dir,
         pal::string_t* output)
 {
+    std::vector<deps_entry_t> empty(0);
+
     pal::string_t ni_package_cache_dir;
     if (package_cache_dir.empty())
     {
@@ -307,9 +299,9 @@ void deps_resolver_t::resolve_tpa_list(
         }
 	};
 	
-	const auto& deps_entries = m_deps.get_entries(deps_entry_t::asset_types::runtime);
+	const auto& deps_entries = m_deps->get_entries(deps_entry_t::asset_types::runtime);
     std::for_each(deps_entries.begin(), deps_entries.end(), process_entry);
-	const auto& fx_entries = m_fx_deps.get_entries(deps_entry_t::asset_types::runtime);
+	const auto& fx_entries = m_portable ? m_fx_deps->get_entries(deps_entry_t::asset_types::runtime) : empty;
     std::for_each(fx_entries.begin(), fx_entries.end(), process_entry);
 
     // Finally, if the deps file wasn't present or has missing entries, then
@@ -364,8 +356,9 @@ void deps_resolver_t::resolve_probe_dirs(
     deps_entry_t::asset_types entry_type = (asset_type == _X("resources")) ? deps_entry_t::asset_types::resources : deps_entry_t::asset_types::native;
     std::set<pal::string_t> items;
 
-	const auto& entries = m_deps.get_entries(entry_type);
-	const auto& fx_entries = m_fx_deps.get_entries(entry_type);
+    std::vector<deps_entry_t> empty(0);
+	const auto& entries = m_deps->get_entries(entry_type);
+	const auto& fx_entries = m_portable ? m_fx_deps->get_entries(entry_type) : empty;
 
     // Fill the "output" with serviced DLL directories if they are serviceable
     // and have an entry present.

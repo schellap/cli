@@ -155,16 +155,21 @@ bool fx_muxer_t::resolve_sdk_dotnet_path(const pal::string_t& own_dir, pal::stri
 /* static */
 int fx_muxer_t::execute(const int argc, const pal::char_t* argv[])
 {
-    pal::string_t app_path;
+    if (argc < 2)
+    {
+        return LibHostStatusCode::InvalidArgFailure;
+    }
+    pal::string_t app_path = argv[1];
+    pal::string_t own_path;
 
     // Get the full name of the application
-    if (!pal::get_own_executable_path(&app_path) || !pal::realpath(&app_path))
+    if (!pal::get_own_executable_path(&own_path) || !pal::realpath(&own_path))
     {
         trace::error(_X("Failed to locate current executable"));
         return LibHostStatusCode::LibHostCurExeFindFailure;
     }
 
-    auto own_dir = get_directory(app_path);
+    auto own_dir = get_directory(own_path);
 
 	runtime_config_t config(get_runtime_config_json(app_path));
     if (ends_with(app_path, _X(".dll"), false))
@@ -174,11 +179,20 @@ int fx_muxer_t::execute(const int argc, const pal::char_t* argv[])
             return LibHostStatusCode::LibHostExecModeFailure;
         }
 
-        pal::string_t fx_dir = resolve_fx_dir(own_dir, &config, app_path);
-        return policy_load_t::execute_app(fx_dir, fx_dir, &config, argc, argv);
+        if (config.get_portable())
+        {
+            pal::string_t fx_dir = resolve_fx_dir(own_dir, &config, app_path);
+            return policy_load_t::execute_app(fx_dir, fx_dir, &config, argc, argv);
+        }
+        else
+        {
+            return policy_load_t::execute_app(get_directory(app_path), _X(""), &config, argc, argv);
+        }
     }
     else
     {
+        // TODO: Hook up exec mode argument --additionalprobingpath and --depsfile to corehost_init_t.
+
         pal::string_t sdk_dotnet;
         if (!resolve_sdk_dotnet_path(own_dir, &sdk_dotnet))
         {

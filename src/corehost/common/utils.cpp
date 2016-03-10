@@ -72,12 +72,10 @@ pal::string_t get_filename_without_ext(const pal::string_t& path, const pal::cha
     }
 
     size_t name_pos = path.find_last_of(dir_sep);
-    if (name_pos == pal::string_t::npos)
-    {
-        return path.substr(0, path.find_last_of(_X('.')));
-    }
-    size_t dot_pos = path.find_last_of(_X('.'), name_pos);
-    return path.substr(name_pos + 1, dot_pos);
+    size_t dot_pos = path.rfind(_X('.'));
+    size_t start_pos = (name_pos == pal::string_t::npos) ? 0 : (name_pos + 1);
+    size_t count = (dot_pos == pal::string_t::npos) ? pal::string_t::npos : (dot_pos - start_pos);
+    return path.substr(start_pos, count);
 }
 
 pal::string_t get_filename(const pal::string_t& path)

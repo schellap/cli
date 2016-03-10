@@ -24,20 +24,27 @@ struct probe_paths_t
 class deps_resolver_t
 {
 public:
-    deps_resolver_t(const pal::string_t& fx_deps, const runtime_config_t* config, const arguments_t& args)
+    deps_resolver_t(const pal::string_t& fx_dir, const runtime_config_t* config, const arguments_t& args)
         : m_svc(args.dotnet_servicing)
-		, m_fx_dir(get_directory(fx_deps))
+		, m_fx_dir(fx_dir)
         , m_coreclr_index(-1)
-        , m_fx_deps(false, fx_deps)
-        , m_deps(config->get_portable(), args.deps_path, m_fx_deps.get_rid_fallback_graph())
         , m_portable(config->get_portable())
+        , m_deps(nullptr)
+        , m_fx_deps(nullptr)
     {
-        load();
+        if (m_portable)
+        {
+            m_fx_deps = std::make_unique<deps_json_t>(false, get_fx_deps(fx_dir, config->get_fx_name()));
+            m_deps = std::make_unique<deps_json_t>(true, args.deps_path, m_fx_deps->get_rid_fallback_graph());
+        }
+        else
+        {
+            m_deps = std::make_unique<deps_json_t>(false, args.deps_path);
+        }
     }
 
-    bool load();
 
-    bool valid() { return m_deps.is_valid(); }
+    bool valid() { return m_deps->is_valid() && (!m_portable || m_fx_deps->is_valid());  }
 
     bool resolve_probe_paths(
       const pal::string_t& app_dir,
@@ -52,6 +59,14 @@ public:
         const pal::string_t& package_cache_dir);
 
 private:
+
+    static pal::string_t get_fx_deps(const pal::string_t& fx_dir, const pal::string_t& fx_name)
+    {
+        pal::string_t fx_deps = fx_dir;
+        pal::string_t fx_deps_name = pal::to_lower(fx_name) + _X(".deps.json");
+        append_path(&fx_deps, fx_deps_name.c_str());
+        return fx_deps;
+    }
 
     // Resolve order for TPA lookup.
     void resolve_tpa_list(
@@ -89,10 +104,11 @@ private:
     // Special entry for coreclr in the deps entries
     int m_coreclr_index;
 
-    // Construct m_fx_deps before m_deps, as the runtime graph is fed into
-    // m_deps from m_fx_deps
-    deps_json_t m_fx_deps;
-    deps_json_t m_deps;
+    // Deps files for the fx
+    std::unique_ptr<deps_json_t> m_fx_deps;
+
+    // Deps files for the app
+    std::unique_ptr<deps_json_t>  m_deps;
 
     // Is the deps file valid
     bool m_deps_valid;

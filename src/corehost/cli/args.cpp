@@ -105,10 +105,10 @@ bool parse_arguments(const int argc, const pal::char_t* argv[], arguments_t& arg
         args.deps_path.append(app_base);
         args.deps_path.push_back(DIR_SEPARATOR);
         args.deps_path.append(app_name, 0, app_name.find_last_of(_X(".")));
-        args.deps_path.append(_X(".deps"));
+        args.deps_path.append(_X(".deps.json"));
     }
 
-    pal::getenv(_X("NUGET_PACKAGES"), &args.nuget_packages);
+    pal::getenv(_X("NUGET_PACKAGES"), &args.nuget_packages); // TODO: This comes from corehost_init_t
     pal::getenv(_X("DOTNET_PACKAGES_CACHE"), &args.dotnet_packages_cache);
     pal::getenv(_X("DOTNET_SERVICING"), &args.dotnet_servicing);
     pal::getenv(_X("DOTNET_RUNTIME_SERVICING"), &args.dotnet_runtime_servicing);

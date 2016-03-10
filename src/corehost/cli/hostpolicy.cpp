@@ -14,10 +14,7 @@
 int run(const pal::string_t& fx_dir, const runtime_config_t& config, const arguments_t& args)
 {
     // Load the deps resolver
-	pal::string_t fx_deps = fx_dir;
-	pal::string_t fx_deps_name = pal::to_lower(config.get_fx_name()) + _X(".deps.json");
-	append_path(&fx_deps, fx_deps_name.c_str());
-    deps_resolver_t resolver(fx_deps, &config, args);
+    deps_resolver_t resolver(fx_dir, &config, args);
     if (!resolver.valid())
     {
         trace::error(_X("Invalid .deps file"));
