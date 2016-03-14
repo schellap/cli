@@ -12,7 +12,7 @@ class corehost_t
 public:
 
     int run(const int argc, const pal::char_t* argv[]);
-    static int corehost_t::execute_app(
+    static int execute_app(
         const pal::string_t& policy_dir,
         const pal::string_t& fx_dir,
         const runtime_config_t* config,

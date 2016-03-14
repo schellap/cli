@@ -58,7 +58,7 @@ pal::string_t corehost_t::resolve_fxr_path(const pal::string_t& own_dir)
             fx_ver_t fx_ver(-1, -1, -1);
             if (fx_ver_t::parse(ver, &fx_ver, false))
             {
-                max_ver = max(max_ver, fx_ver);
+                max_ver = std::max(max_ver, fx_ver);
             }
         }
 

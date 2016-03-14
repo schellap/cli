@@ -33,7 +33,7 @@ pal::string_t fx_muxer_t::resolve_fx_dir(const pal::string_t& muxer_dir, runtime
     append_path(&fx_dir, fx_name.c_str());
 
     // If not roll forward or if pre-release, just return.
-    if (!roll_fwd || !specified.pre.empty())
+    if (!roll_fwd || specified.is_prerelease())
     {
         append_path(&fx_dir, fx_ver.c_str());
     }
@@ -46,10 +46,10 @@ pal::string_t fx_muxer_t::resolve_fx_dir(const pal::string_t& muxer_dir, runtime
         {
             fx_ver_t ver(-1, -1, -1);
             if (fx_ver_t::parse(version, &ver, true) &&
-                ver.major == max_specified.major &&
-                ver.minor == max_specified.minor)
+                ver.get_major() == max_specified.get_major() &&
+                ver.get_minor() == max_specified.get_minor())
             {
-                max_specified.patch = max(ver.patch, max_specified.patch);
+                max_specified.set_patch(std::max(ver.get_patch(), max_specified.get_patch()));
             }
         }
         pal::string_t max_specified_str = max_specified.as_str();
@@ -146,7 +146,7 @@ bool fx_muxer_t::resolve_sdk_dotnet_path(const pal::string_t& own_dir, pal::stri
             fx_ver_t ver(-1, -1, -1);
             if (fx_ver_t::parse(version, &ver, true))
             {
-                max_ver = max(ver, max_ver);
+                max_ver = std::max(ver, max_ver);
             }
         }
         pal::string_t max_ver_str = max_ver.as_str();

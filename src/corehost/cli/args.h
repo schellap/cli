@@ -7,8 +7,7 @@
 #include "utils.h"
 #include "pal.h"
 #include "trace.h"
-
-enum host_mode_t;
+#include "libhost.h"
 
 struct arguments_t
 {

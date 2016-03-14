@@ -36,12 +36,12 @@ public:
         if (m_portable)
         {
             m_fx_deps_file = get_fx_deps(fx_dir, config->get_fx_name());
-            m_fx_deps = std::make_unique<deps_json_t>(false, m_fx_deps_file);
-            m_deps = std::make_unique<deps_json_t>(true, m_deps_file, m_fx_deps->get_rid_fallback_graph());
+            m_fx_deps = std::unique_ptr<deps_json_t>(new deps_json_t(false, m_fx_deps_file));
+            m_deps = std::unique_ptr<deps_json_t>(new deps_json_t(true, m_deps_file, m_fx_deps->get_rid_fallback_graph()));
         }
         else
         {
-            m_deps = std::make_unique<deps_json_t>(false, m_deps_file);
+            m_deps = std::unique_ptr<deps_json_t>(new deps_json_t(false, m_deps_file));
         }
     }
 

@@ -6,11 +6,11 @@
 #include "fx_ver.h"
 
 fx_ver_t::fx_ver_t(int major, int minor, int patch, const pal::string_t& pre, const pal::string_t& build)
-    : major(major)
-    , minor(minor)
-    , patch(patch)
-    , pre(pre)
-    , build(build)
+    : m_major(major)
+    , m_minor(minor)
+    , m_patch(patch)
+    , m_pre(pre)
+    , m_build(build)
 {
 }
 
@@ -47,14 +47,14 @@ bool fx_ver_t::operator >(const fx_ver_t& b) const
 pal::string_t fx_ver_t::as_str()
 {
     pal::stringstream_t stream;
-    stream << major << _X(".") << minor << _X(".") << patch;
-    if (!pre.empty())
+    stream << m_major << _X(".") << m_minor << _X(".") << m_patch;
+    if (!m_pre.empty())
     {
-        stream << pre;
+        stream << m_pre;
     }
-    if (!build.empty())
+    if (!m_build.empty())
     {
-        stream << _X("+") << build;
+        stream << _X("+") << m_build;
     }
     return stream.str();
 }
@@ -64,17 +64,17 @@ int fx_ver_t::compare(const fx_ver_t&a, const fx_ver_t& b, bool ignore_build)
 {
     // compare(u.v.w-p+b, x.y.z-q+c)
     return
-    (a.major == b.major)
-        ? ((a.minor == b.minor)
-            ? ((a.patch == b.patch)
-                ? ((a.pre.empty() == b.pre.empty())
-                    ? ((a.pre.empty())
-                        ? (ignore_build ? 0 : a.build.compare(b.build))
-                        : a.pre.compare(b.pre))
-                    : a.pre.empty() ? 1 : -1)
-                : (a.patch > b.patch ? 1 : -1))
-            : (a.minor > b.minor ? 1 : -1))
-        : ((a.major > b.major) ? 1 : -1)
+    (a.m_major == b.m_major)
+        ? ((a.m_minor == b.m_minor)
+            ? ((a.m_patch == b.m_patch)
+                ? ((a.m_pre.empty() == b.m_pre.empty())
+                    ? ((a.m_pre.empty())
+                        ? (ignore_build ? 0 : a.m_build.compare(b.m_build))
+                        : a.m_pre.compare(b.m_pre))
+                    : a.m_pre.empty() ? 1 : -1)
+                : (a.m_patch > b.m_patch ? 1 : -1))
+            : (a.m_minor > b.m_minor ? 1 : -1))
+        : ((a.m_major > b.m_major) ? 1 : -1)
         ;
 }
 

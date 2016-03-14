@@ -10,6 +10,8 @@
 #include <dirent.h>
 #include <sys/stat.h>
 
+#include <unistd.h>
+
 #if defined(__APPLE__)
 #include <mach-o/dyld.h>
 #endif
@@ -32,7 +34,7 @@ pal::string_t pal::to_lower(const pal::string_t& in)
 bool pal::getcwd(pal::string_t* recv)
 {
     recv->clear();
-    pal::char_t* buf = getcwd(nullptr, PATH_MAX + 1);
+    pal::char_t* buf = ::getcwd(nullptr, PATH_MAX + 1);
     if (buf == nullptr)
     {
         if (errno == ENOENT)

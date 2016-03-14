@@ -50,8 +50,8 @@ case $__build_arch in
     *)
         echo "Unknown architecture $__build_arch"; exit 1
         ;;
-    __cmake_defines="${__cmake_defines} ${__define}"
 esac
+__cmake_defines="${__cmake_defines} ${__define}"
 
 
 echo "Building Corehost from $DIR to $(pwd)"
