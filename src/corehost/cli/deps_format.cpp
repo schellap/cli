@@ -18,9 +18,8 @@ const deps_entry_t& deps_json_t::try_ni(const deps_entry_t& entry) const
 {
     if (m_ni_entries.count(entry.asset_name))
     {
-        assert(pal::strcmp(s_known_asset_types[0], _X("runtime")) == 0);
         int index = m_ni_entries.at(entry.asset_name);
-        return m_deps_entries[0][index];
+        return m_deps_entries[deps_entry_t::asset_types::runtime][index];
     }
     return entry;
 }
@@ -77,8 +76,8 @@ void deps_json_t::reconcile_libraries_with_targets(
 
                 if (ni_dll)
                 {
-                    assert(pal::strcmp(s_known_asset_types[i], _X("runtime")) == 0);
-                    m_ni_entries[entry.asset_name] = m_deps_entries[i].size() - 1;
+                    m_ni_entries[entry.asset_name] = m_deps_entries
+                        [deps_entry_t::asset_types::runtime].size() - 1;
                 }
 
                 if (i == deps_entry_t::asset_types::native &&
