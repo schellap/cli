@@ -12,7 +12,7 @@ endif()
 
 include(setup.cmake)
 
-set (CMAKE_CXX_STANDARD 11)
+set (CMAKE_CXX_STANDARD 14)
 
 include_directories(..)
 include_directories(../common)
@@ -49,9 +49,9 @@ install(TARGETS corehost DESTINATION bin)
 add_definitions(-D_NO_ASYNCRTIMP)
 add_definitions(-D_NO_PPLXIMP)
 
-# Older CMake doesn't support CMAKE_CXX_STANDARD and GCC/Clang need a switch to enable C++ 11
+# Older CMake doesn't support CMAKE_CXX_STANDARD and GCC/Clang need a switch to enable C++ 14
 if(${CMAKE_CXX_COMPILER_ID} MATCHES "(Clang|GNU)")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
 endif()
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")

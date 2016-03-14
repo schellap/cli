@@ -83,7 +83,7 @@ private:
 
     bool perform_rid_fallback(rid_specific_assets_t* portable_assets, const rid_fallback_graph_t& rid_fallback_graph);
 
-    static const std::array<pal::char_t*, deps_entry_t::asset_types::count> s_known_asset_types;
+    static const std::array<const pal::char_t*, deps_entry_t::asset_types::count> s_known_asset_types;
 
     std::vector<deps_entry_t> m_deps_entries[deps_entry_t::asset_types::count];
 

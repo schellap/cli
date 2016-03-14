@@ -14,7 +14,6 @@
 
 
 corehost_init_t* g_init = nullptr;
-pal::string_t g_deps;
 
 int run(const corehost_init_t* init, const runtime_config_t& config, const arguments_t& args)
 {
@@ -26,8 +25,6 @@ int run(const corehost_init_t* init, const runtime_config_t& config, const argum
         trace::error(_X("Invalid .deps file"));
         return StatusCode::ResolverInitFailure;
     }
-
-    g_deps = resolver.get_deps_file() + _X(";") + resolver.get_fx_deps_file();
 
     // Add packages directory
     pal::string_t packages_dir = init->probe_dir();
@@ -67,6 +64,7 @@ int run(const corehost_init_t* init, const runtime_config_t& config, const argum
         "SERVER_GC",
         // Workaround: mscorlib does not resolve symlinks for AppContext.BaseDirectory dotnet/coreclr/issues/2128
         "APP_CONTEXT_BASE_DIRECTORY",
+        "APP_CONTEXT_DEPS_FILES"
     };
 
     auto tpa_paths_cstr = pal::to_stdstring(probe_paths.tpa);
@@ -77,6 +75,8 @@ int run(const corehost_init_t* init, const runtime_config_t& config, const argum
     // Workaround for dotnet/cli Issue #488 and #652
     pal::string_t server_gc;
     std::string server_gc_cstr = (pal::getenv(_X("COREHOST_SERVER_GC"), &server_gc) && !server_gc.empty()) ? pal::to_stdstring(server_gc) : "0";
+    
+    std::string deps = pal::to_stdstring(resolver.get_deps_file() + _X(";") + resolver.get_fx_deps_file());
 
     const char* property_values[] = {
         // TRUSTED_PLATFORM_ASSEMBLIES
@@ -94,7 +94,9 @@ int run(const corehost_init_t* init, const runtime_config_t& config, const argum
         // SERVER_GC
         server_gc_cstr.c_str(),
         // APP_CONTEXT_BASE_DIRECTORY
-        app_base_cstr.c_str()
+        app_base_cstr.c_str(),
+        // APP_CONTEXT_DEPS_FILES,
+        deps.c_str(),
     };
 
     size_t property_size = sizeof(property_keys) / sizeof(property_keys[0]);
@@ -186,14 +188,6 @@ int run(const corehost_init_t* init, const runtime_config_t& config, const argum
     coreclr::unload();
 
     return exit_code;
-}
-
-// API to get deps from managed app.
-SHARED_API const pal::char_t* corehost_get_deps()
-{
-    // C:\temp\deps.json;
-    // C:\temp\deps.json;H:\dotnet\Shared\NetCoreApp\1.0.0\netcoreapp.deps.json
-    return g_deps.c_str();
 }
 
 SHARED_API int corehost_load(corehost_init_t* init)

@@ -11,7 +11,7 @@
 #include <cassert>
 #include <functional>
 
-const std::array<pal::char_t*, deps_entry_t::asset_types::count> deps_json_t::s_known_asset_types = {
+const std::array<const pal::char_t*, deps_entry_t::asset_types::count> deps_json_t::s_known_asset_types = {
     _X("runtime"), _X("resources"), _X("native") };
 
 const deps_entry_t& deps_json_t::try_ni(const deps_entry_t& entry) const
