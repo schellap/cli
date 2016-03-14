@@ -19,7 +19,8 @@
 
 #if defined(_WIN32)
 
-#include <Windows.h>
+#define NOMINMAX
+#include <windows.h>
 
 #define HOST_EXE_NAME L"corehost.exe"
 #define xerr std::wcerr
