@@ -55,6 +55,7 @@ pal::string_t fx_muxer_t::resolve_fx_dir(const pal::string_t& muxer_dir, runtime
         pal::string_t max_specified_str = max_specified.as_str();
         append_path(&fx_dir, max_specified_str.c_str());
     }
+    trace::verbose(_X("found fx in: %s"), fx_dir.c_str());
     return pal::directory_exists(fx_dir) ? fx_dir : pal::string_t();
 }
 
@@ -93,6 +94,7 @@ pal::string_t fx_muxer_t::resolve_cli_version(const pal::string_t& global_json)
     catch (...)
     {
     }
+    trace::verbose(_X("found cli in: %s"), retval.c_str());
     return retval;
 }
 
@@ -157,6 +159,7 @@ bool fx_muxer_t::resolve_sdk_dotnet_path(const pal::string_t& own_dir, pal::stri
         }
     }
     cli_sdk->assign(retval);
+    trace::verbose(_X("found cli sdk in: %s"), cli_sdk->c_str());
     return !retval.empty();
 }
 
@@ -259,12 +262,15 @@ int fx_muxer_t::execute(const int argc, const pal::char_t* argv[])
             {
                 return StatusCode::LibHostSdkFindFailure;
             }
+            append_path(&sdk_dotnet, _X("dotnet.dll"));
             // Transform dotnet [command] [args] -> dotnet [dotnet.dll] [command] [args]
 
             std::vector<const pal::char_t*> new_argv(argc + 1);
             memcpy(&new_argv.data()[2], argv + 1, (argc - 1) * sizeof(pal::char_t*));
             new_argv[0] = argv[0];
             new_argv[1] = sdk_dotnet.c_str();
+
+            trace::verbose(_X("Using SDK dll=[%s]"), sdk_dotnet.c_str());
 
             assert(ends_with(sdk_dotnet, _X(".dll"), false));
 
