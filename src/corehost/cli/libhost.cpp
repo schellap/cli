@@ -40,13 +40,14 @@ host_mode_t detect_operating_mode(const int argc, const pal::char_t* argv[], pal
     {
         pal::string_t own_deps_json = own_dir;
         pal::string_t own_deps_filename = strip_file_ext(own_name) + _X(".deps.json");
+        pal::string_t own_config_filename = strip_file_ext(own_name) + _X(".runtimeconfig.json");
         append_path(&own_deps_json, own_deps_filename.c_str());
         if (trace::is_enabled())
         {
             trace::info(_X("Detecting mode... CoreCLR present in own dir [%s] and checking if [%s] file present=[%d]"),
                 own_dir.c_str(), own_deps_filename.c_str(), pal::file_exists(own_deps_json));
         }
-        return (pal::file_exists(own_deps_json)) ? host_mode_t::standalone : host_mode_t::split_fx;
+        return (pal::file_exists(own_deps_json) || !pal::file_exists(own_config_filename)) ? host_mode_t::standalone : host_mode_t::split_fx;
     }
     else
     {

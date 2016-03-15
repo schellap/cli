@@ -13,8 +13,8 @@ struct deps_entry_t
     enum asset_types
     {
         runtime = 0,
-        native,
         resources,
+        native,
         count
     };
 

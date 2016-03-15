@@ -146,6 +146,10 @@ pal::string_t deps_resolver_t::resolve_coreclr_dir(
                 return get_directory(candidate);
             }
         }
+        else
+        {
+            trace::verbose(_X("Deps has no coreclr entry."));
+        }
 
         // Package cache.
         pal::string_t coreclr_cache;

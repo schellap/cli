@@ -223,7 +223,6 @@ SHARED_API int corehost_main(const int argc, const pal::char_t* argv[])
         }
         return run(g_init, config, args);
     }
-
 }
 
 SHARED_API int corehost_unload()

@@ -32,12 +32,16 @@ void deps_json_t::reconcile_libraries_with_targets(
     const auto& libraries = json.at(_X("libraries")).as_object();
     for (const auto& library : libraries)
     {
+        trace::info(_X("Reconciling library %s"), library.first.c_str());
+
         if (pal::to_lower(library.second.at(_X("type")).as_string()) != _X("package"))
         {
+            trace::info(_X("Library %s is not a package"), library.first.c_str());
             continue;
         }
         if (!library_exists_fn(library.first))
         {
+            trace::info(_X("Library %s does not exist"), library.first.c_str());
             continue;
         }
 
@@ -80,6 +84,8 @@ void deps_json_t::reconcile_libraries_with_targets(
                         [deps_entry_t::asset_types::runtime].size() - 1;
                 }
 
+                trace::info(_X("Added %s %s deps entry [%d] [%s, %s, %s]"), s_known_asset_types[i], entry.asset_name.c_str(), m_deps_entries[i].size() - 1, entry.library_name.c_str(), entry.library_version.c_str(), entry.relative_path.c_str());
+                
                 if (i == deps_entry_t::asset_types::native &&
                     entry.asset_name == LIBCORECLR_FILENAME)
                 {
@@ -193,6 +199,7 @@ bool deps_json_t::process_targets(const json_value& json, const pal::string_t& t
             {
                 for (const auto& file : iter->second.as_object())
                 {
+                    trace::info(_X("Adding %s asset %s from %s"), s_known_asset_types[i], file.first.c_str(), package.first.c_str());
                     assets[package.first][i].push_back(file.first);
                 }
             }

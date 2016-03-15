@@ -31,8 +31,17 @@ bool parse_arguments(const pal::string_t& deps_path, const pal::string_t& probe_
     const int argc, const pal::char_t* argv[], arguments_t* arg_out)
 {
     arguments_t& args = *arg_out;
+    // Get the full name of the application
+    if (!pal::get_own_executable_path(&args.own_path) || !pal::realpath(&args.own_path))
+    {
+        trace::error(_X("Failed to locate current executable"));
+        return false;
+    }
 
-    if (mode != host_mode_t::standalone)
+    auto own_name = get_filename(args.own_path);
+    auto own_dir = get_directory(args.own_path);
+    
+    if (own_name.compare(HOST_EXE_NAME) == 0)
     {
         // corerun mode. First argument is managed app
         if (argc < 2)
@@ -52,16 +61,6 @@ bool parse_arguments(const pal::string_t& deps_path, const pal::string_t& probe_
     }
     else
     {
-        // Get the full name of the application
-        if (!pal::get_own_executable_path(&args.own_path) || !pal::realpath(&args.own_path))
-        {
-            trace::error(_X("Failed to locate current executable"));
-            return false;
-        }
-
-        auto own_name = get_filename(args.own_path);
-        auto own_dir = get_directory(args.own_path);
-
         // coreconsole mode. Find the managed app in the same directory
         pal::string_t managed_app(own_dir);
         managed_app.push_back(DIR_SEPARATOR);
