@@ -60,7 +60,7 @@ done
 __cmake_defines=
 
 case $__build_arch in
-    amd64)
+    amd64|x64)
         __define=-DCLI_CMAKE_PLATFORM_ARCH_AMD64=1
         ;;
     x86)

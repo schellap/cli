@@ -78,8 +78,8 @@ namespace Microsoft.DotNet.Cli.Build
             var configuration = c.BuildContext.Get<string>("Configuration");
 
             // Run the build
-            string version = DotNetCli.Stage0.Exec("", "--version").CaptureStdOut().Execute().StdOut;
-            string rid = Array.Find<string>(version.Split(Environment.NewLine.ToCharArray()), (e) => e.Contains("Runtime Id:")).Replace("Runtime Id:", "").Trim();
+            string rid = PlatformServices.Default.Runtime.GetRuntimeIdentifier();
+            string corehostSrcDir = Path.Combine(c.BuildContext.BuildDirectory, "src", "corehost");
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
                 // Why does Windows directly call cmake but Linux/Mac calls "build.sh" in the corehost dir?
@@ -89,7 +89,7 @@ namespace Microsoft.DotNet.Cli.Build
                 var ridMacro = $"-DCLI_CMAKE_RUNTIME_ID:STRING={rid}";
 
                 ExecIn(cmakeOut, "cmake",
-                    Path.Combine(c.BuildContext.BuildDirectory, "src", "corehost"),
+                    corehostSrcDir,
                     archMacro,
                     ridMacro,
                     "-G",
@@ -116,12 +116,20 @@ namespace Microsoft.DotNet.Cli.Build
                 File.Copy(Path.Combine(cmakeOut, "cli", "dll", configuration, "hostpolicy.pdb"), Path.Combine(Dirs.Corehost, "hostpolicy.pdb"), overwrite: true);
                 File.Copy(Path.Combine(cmakeOut, "cli", "fxr", configuration, "hostfxr.dll"), Path.Combine(Dirs.Corehost, "hostfxr.dll"), overwrite: true);
                 File.Copy(Path.Combine(cmakeOut, "cli", "fxr", configuration, "hostfxr.pdb"), Path.Combine(Dirs.Corehost, "hostfxr.pdb"), overwrite: true);
+
+                Command.Create(Path.Combine(corehostSrcDir, "packaging", "pack.cmd"))
+                    // Workaround to arg escaping adding backslashes for arguments to .cmd scripts.
+                    .Environment("__WorkaroundCliCoreHostBuildArch", IsWinx86 ? "x86" : "x64")
+                    .Environment("__WorkaroundCliCoreHostBinDir", Dirs.Corehost)
+                    .ForwardStdOut()
+                    .ForwardStdErr()
+                    .Execute();
             }
             else
             {
                 ExecIn(cmakeOut, Path.Combine(c.BuildContext.BuildDirectory, "src", "corehost", "build.sh"),
                         "--arch",
-                        "amd64",
+                        "x64",
                         "--rid",
                         rid);
 
@@ -129,6 +137,13 @@ namespace Microsoft.DotNet.Cli.Build
                 File.Copy(Path.Combine(cmakeOut, "cli", "corehost"), Path.Combine(Dirs.Corehost, CoreHostBaseName), overwrite: true);
                 File.Copy(Path.Combine(cmakeOut, "cli", "dll", HostPolicyBaseName), Path.Combine(Dirs.Corehost, HostPolicyBaseName), overwrite: true);
                 File.Copy(Path.Combine(cmakeOut, "cli", "fxr", DotnetHostFxrBaseName), Path.Combine(Dirs.Corehost, DotnetHostFxrBaseName), overwrite: true);
+                
+                Exec(Path.Combine(corehostSrcDir, "packaging", "pack.sh"),
+                    CurrentPlatform.IsOSX ? "--osx" : "",
+                    "--arch",
+                    "x64",
+                    "--hostbindir",
+                    Dirs.Corehost);
             }
 
             return c.Success();
