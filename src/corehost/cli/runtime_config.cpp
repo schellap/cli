@@ -18,38 +18,69 @@ runtime_config_t::runtime_config_t(const pal::string_t& path)
     m_valid = ensure_parsed();
 } 
 
-void parse_fx(const json_value& opts, pal::string_t* name, pal::string_t* version, bool* roll_fwd, bool* portable)
+struct property_converter_t
 {
-    name->clear();
-    version->clear();
-    *roll_fwd = true;
-    *portable = false;
+    const pal::char_t* property;
+    std::function<pal::string_t(const json_value& value)> convert;
+   
+    pal::string_t int_to_str(const json_value& value)
+    {
+        return pal::to_string(value.as_integer());
+    };
 
+    pal::string_t bool_to_str(const json_value& value)
+    {
+        return value.is_bool() ? pal::to_string((int) value.as_bool()) : int_to_str(value);
+    };
+};
+
+const property_converter_t property_converters[] = {
+    { _X("System.GC.Server"), property_converter_t::bool_to_str },
+    { _X("System.GC.Concurrent"), property_converter_t::bool_to_str },
+   
+    { _X("System.Threading.ThreadPool.MinThreads"), property_converter_t::int_to_str },
+    { _X("System.Threading.ThreadPool.MaxThreads"), property_converter_t::int_to_str },
+    { _X("System.Threading.Thread.UseAllCpuGroups"), property_converter_t::int_to_str }
+};
+
+bool runtime_config_t::parse_opts(const json_value& opts)
+{
     if (opts.is_null())
     {
-        return;
+        return true;
     }
 
     const auto& opts_obj = opts.as_object();
+    
+    for (const auto& pc : property_converters)
+    {
+        auto property = opts_obj.find(pc.property);
+        if (property != opts_obj.end())
+        {
+            m_properties[property->first] = pc.convert(property->second);
+        }
+    }
+
     auto framework =  opts_obj.find(_X("framework"));
     if (framework == opts_obj.end())
     {
-        return;
+        return true;
     }
 
-    *portable = true;
+    m_portable = true;
 
     const auto& fx_obj = framework->second.as_object();
-    *name = fx_obj.at(_X("name")).as_string();
-    *version = fx_obj.at(_X("version")).as_string();
+    m_fx_name = fx_obj.at(_X("name")).as_string();
+    m_fx_ver = fx_obj.at(_X("version")).as_string();
 
     auto value = fx_obj.find(_X("rollForward"));
     if (value == fx_obj.end())
     {
-        return;
+        return true;
     }
 
-    *roll_fwd = value->second.as_bool();
+    m_fx_roll_fwd = value->second.as_bool();
+    return true;
 }
 
 bool runtime_config_t::ensure_parsed()
@@ -74,7 +105,7 @@ bool runtime_config_t::ensure_parsed()
         const auto iter = json.find(_X("runtimeOptions"));
         if (iter != json.end())
         {
-            parse_fx(iter->second, &m_fx_name, &m_fx_ver, &m_fx_roll_fwd, &m_portable);
+            parse_opts(iter->second);
         }
     }
     catch (...)
@@ -87,6 +118,10 @@ bool runtime_config_t::ensure_parsed()
 const pal::string_t& runtime_config_t::get_gc_server() const
 {
     assert(m_valid);
+    if (m_properties.count(_X("System.GC.Server")))
+    {
+        m_gc_server = m_properties[_X("System.GC.Server")];
+    }
     return m_gc_server;
 }
 

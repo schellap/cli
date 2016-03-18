@@ -17,7 +17,8 @@ public:
 
 private:
     bool ensure_parsed();
-    
+ 
+    unordered_map<pal::string_t, pal::string_t> m_properties;   
     pal::string_t m_gc_server;
     pal::string_t m_fx_name;
     pal::string_t m_fx_ver;
