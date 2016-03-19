@@ -40,9 +40,13 @@ pushd %__ProjectDir%\deps
 %__ProjectDir%\Tools\dotnetcli\bin\dotnet.exe restore --source "https://dotnet.myget.org/F/dotnet-core" --packages %__ProjectDir%\packages
 popd
 
+:: Clean up existing nupkgs
+rmdir /s /q %__ProjectDir%\bin
+
 :: Package the assets using Tools
-%__ProjectDir%\Tools\corerun %__ProjectDir%\Tools\MSBuild.exe projects\Microsoft.NETCore.DotNetHostPolicy.pkgproj /p:Platform=%__BuildArch% /p:DotNetHostBinDir=%__DotNetHostBinDir%
-%__ProjectDir%\Tools\corerun %__ProjectDir%\Tools\MSBuild.exe projects\win\Microsoft.NETCore.DotNetHostPolicy.pkgproj /p:Platform=%__BuildArch% /p:DotNetHostBinDir=%__DotNetHostBinDir%
+%__ProjectDir%\Tools\corerun %__ProjectDir%\Tools\MSBuild.exe %__ProjectDir%\projects\Microsoft.NETCore.DotNetHostPolicy.builds /p:Platform=%__BuildArch% /p:DotNetHostBinDir=%__DotNetHostBinDir% /p:TargetsWindows=true
+%__ProjectDir%\Tools\corerun %__ProjectDir%\Tools\MSBuild.exe %__ProjectDir%\projects\Microsoft.NETCore.DotNetHostResolver.builds /p:Platform=%__BuildArch% /p:DotNetHostBinDir=%__DotNetHostBinDir% /p:TargetsWindows=true
+%__ProjectDir%\Tools\corerun %__ProjectDir%\Tools\MSBuild.exe %__ProjectDir%\projects\Microsoft.NETCore.DotNetHost.builds /p:Platform=%__BuildArch% /p:DotNetHostBinDir=%__DotNetHostBinDir% /p:TargetsWindows=true
 
 exit /b 0
 

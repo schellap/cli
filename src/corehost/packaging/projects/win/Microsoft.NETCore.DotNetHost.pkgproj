@@ -3,7 +3,7 @@
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
   
   <PropertyGroup>
-    <Version>$(HostPolicyVersion)</Version>
+    <Version>$(HostVersion)</Version>
     <SkipPackageFileCheck>true</SkipPackageFileCheck>
     <MinOSForArch>win7</MinOSForArch>
     <MinOSForArch Condition="$(PackagePlatform.StartsWith('arm'))">win8</MinOSForArch>
@@ -11,11 +11,7 @@
   </PropertyGroup>
   
   <ItemGroup>
-    <Dependency Include="Microsoft.NETCore.DotNetHostResolver">
-      <Version>1.0.0-rc3-00001</Version>
-    </Dependency>
-
-    <ArchitectureSpecificNativeFile Include="$(DotNetHostBinDir)/hostpolicy.dll"/>
+    <ArchitectureSpecificNativeFile Include="$(DotNetHostBinDir)/corehost.exe" />
 
     <File Include="@(ArchitectureSpecificNativeFile)">
       <TargetPath>runtimes/$(PackageTargetRuntime)/native</TargetPath>

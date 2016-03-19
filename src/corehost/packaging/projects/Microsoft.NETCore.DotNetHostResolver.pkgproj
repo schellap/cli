@@ -3,7 +3,7 @@
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
 
   <PropertyGroup>
-    <Version>$(HostPolicyVersion)</Version>
+    <Version>$(HostResolverVersion)</Version>
     <SkipPackageFileCheck>true</SkipPackageFileCheck>
     <SkipValidatePackage>true</SkipValidatePackage>
     <PackagePlatforms>x64;x86</PackagePlatforms>
@@ -12,23 +12,23 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="win\Microsoft.NETCore.DotNetHostPolicy.pkgproj">
+    <ProjectReference Include="win\Microsoft.NETCore.DotNetHostResolver.pkgproj">
       <Platform>amd64</Platform>
     </ProjectReference>
-    <ProjectReference Include="win\Microsoft.NETCore.DotNetHostPolicy.pkgproj">
+    <ProjectReference Include="win\Microsoft.NETCore.DotNetHostResolver.pkgproj">
       <Platform>x86</Platform>
     </ProjectReference>
     <!--
-    <ProjectReference Include="rhel\Microsoft.NETCore.DotNetHostPolicy.pkgproj">
+    <ProjectReference Include="rhel\Microsoft.NETCore.DotNetHostResolver.pkgproj">
       <Platform>amd64</Platform>
     </ProjectReference>
-    <ProjectReference Include="debian\Microsoft.NETCore.DotNetHostPolicy.pkgproj">
+    <ProjectReference Include="debian\Microsoft.NETCore.DotNetHostResolver.pkgproj">
       <Platform>amd64</Platform>
     </ProjectReference>
-    <ProjectReference Include="osx\Microsoft.NETCore.DotNetHostPolicy.pkgproj">
+    <ProjectReference Include="osx\Microsoft.NETCore.DotNetHostResolver.pkgproj">
       <Platform>amd64</Platform>
     </ProjectReference>
-    <ProjectReference Include="ubuntu\Microsoft.NETCore.DotNetHostPolicy.pkgproj">
+    <ProjectReference Include="ubuntu\Microsoft.NETCore.DotNetHostResolver.pkgproj">
       <Platform>amd64</Platform>
     </ProjectReference>
 -->
