@@ -33,20 +33,20 @@ if [%__BuildArch%]==[] (goto Usage)
 if [%__DotNetHostBinDir%]==[] (goto Usage)
 
 :: Initialize the MSBuild Tools
-call %__ProjectDir%\init-tools.cmd
+call "%__ProjectDir%\init-tools.cmd"
 
 :: Restore dependencies mainly to obtain runtime.json
-pushd %__ProjectDir%\deps
-%__ProjectDir%\Tools\dotnetcli\bin\dotnet.exe restore --source "https://dotnet.myget.org/F/dotnet-core" --packages %__ProjectDir%\packages
+pushd "%__ProjectDir%\deps"
+"%__ProjectDir%\Tools\dotnetcli\bin\dotnet.exe" restore --source "https://dotnet.myget.org/F/dotnet-core" --packages "%__ProjectDir%\packages"
 popd
 
 :: Clean up existing nupkgs
-rmdir /s /q %__ProjectDir%\bin
+rmdir /s /q "%__ProjectDir%\bin"
 
 :: Package the assets using Tools
-%__ProjectDir%\Tools\corerun %__ProjectDir%\Tools\MSBuild.exe %__ProjectDir%\projects\Microsoft.NETCore.DotNetHostPolicy.builds /p:Platform=%__BuildArch% /p:DotNetHostBinDir=%__DotNetHostBinDir% /p:TargetsWindows=true
-%__ProjectDir%\Tools\corerun %__ProjectDir%\Tools\MSBuild.exe %__ProjectDir%\projects\Microsoft.NETCore.DotNetHostResolver.builds /p:Platform=%__BuildArch% /p:DotNetHostBinDir=%__DotNetHostBinDir% /p:TargetsWindows=true
-%__ProjectDir%\Tools\corerun %__ProjectDir%\Tools\MSBuild.exe %__ProjectDir%\projects\Microsoft.NETCore.DotNetHost.builds /p:Platform=%__BuildArch% /p:DotNetHostBinDir=%__DotNetHostBinDir% /p:TargetsWindows=true
+"%__ProjectDir%\Tools\corerun" "%__ProjectDir%\Tools\MSBuild.exe" "%__ProjectDir%\projects\Microsoft.NETCore.DotNetHostPolicy.builds" /p:Platform=%__BuildArch% /p:DotNetHostBinDir=%__DotNetHostBinDir% /p:TargetsWindows=true
+"%__ProjectDir%\Tools\corerun" "%__ProjectDir%\Tools\MSBuild.exe" "%__ProjectDir%\projects\Microsoft.NETCore.DotNetHostResolver.builds" /p:Platform=%__BuildArch% /p:DotNetHostBinDir=%__DotNetHostBinDir% /p:TargetsWindows=true
+"%__ProjectDir%\Tools\corerun" "%__ProjectDir%\Tools\MSBuild.exe" "%__ProjectDir%\projects\Microsoft.NETCore.DotNetHost.builds" /p:Platform=%__BuildArch% /p:DotNetHostBinDir=%__DotNetHostBinDir% /p:TargetsWindows=true
 
 exit /b 0
 
