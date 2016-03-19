@@ -11,7 +11,7 @@
   </PropertyGroup>
   
   <ItemGroup>
-    <ArchitectureSpecificNativeFile Include="$(BinDir)hostpolicy.dll"/>
+    <ArchitectureSpecificNativeFile Include="$(DotNetHostBinDir)/hostpolicy.dll"/>
 
     <File Include="@(ArchitectureSpecificNativeFile)">
       <TargetPath>runtimes/$(PackageTargetRuntime)/native</TargetPath>
