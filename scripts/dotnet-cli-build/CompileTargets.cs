@@ -79,6 +79,7 @@ namespace Microsoft.DotNet.Cli.Build
 
             // Run the build
             string rid = PlatformServices.Default.Runtime.GetRuntimeIdentifier();
+            string corehostSrcDir = Path.Combine(c.BuildContext.BuildDirectory, "src", "corehost");
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
                 // Why does Windows directly call cmake but Linux/Mac calls "build.sh" in the corehost dir?
@@ -87,7 +88,6 @@ namespace Microsoft.DotNet.Cli.Build
                 var archMacro = IsWinx86 ? "-DCLI_CMAKE_PLATFORM_ARCH_I386=1" : "-DCLI_CMAKE_PLATFORM_ARCH_AMD64=1";
                 var ridMacro = $"-DCLI_CMAKE_RUNTIME_ID:STRING={rid}";
 
-                var corehostSrcDir = Path.Combine(c.BuildContext.BuildDirectory, "src", "corehost");
                 ExecIn(cmakeOut, "cmake",
                     corehostSrcDir,
                     archMacro,
@@ -136,7 +136,7 @@ namespace Microsoft.DotNet.Cli.Build
                 File.Copy(Path.Combine(cmakeOut, "cli", "fxr", DotnetHostFxrBaseName), Path.Combine(Dirs.Corehost, DotnetHostFxrBaseName), overwrite: true);
                 
                 Exec(Path.Combine(corehostSrcDir, "packaging", "pack.sh"),
-                    CurrentPlatform.IsOSX ? "--osx" : ""
+                    CurrentPlatform.IsOSX ? "--osx" : "",
                     "--arch",
                     "x64",
                     "--hostbindir",
