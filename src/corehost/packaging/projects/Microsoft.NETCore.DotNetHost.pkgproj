@@ -18,17 +18,12 @@
     <ProjectReference Include="win\Microsoft.NETCore.DotNetHost.pkgproj">
       <Platform>x86</Platform>
     </ProjectReference>
-    <!--
     <ProjectReference Include="rhel\Microsoft.NETCore.DotNetHost.pkgproj">
-      <Platform>amd64</Platform>
-    </ProjectReference>
-    <ProjectReference Include="debian\Microsoft.NETCore.DotNetHost.pkgproj">
       <Platform>amd64</Platform>
     </ProjectReference>
     <ProjectReference Include="osx\Microsoft.NETCore.DotNetHost.pkgproj">
       <Platform>amd64</Platform>
     </ProjectReference>
--->
     <ProjectReference Include="ubuntu\Microsoft.NETCore.DotNetHost.pkgproj">
       <Platform>amd64</Platform>
     </ProjectReference>

@@ -5,8 +5,16 @@ set __ProjectDir=%~dp0
 set __ThisScriptShort=%0
 set __ThisScriptFull="%~f0"
 
-set __BuildArch=
-set __DotNetHostBinDir=
+::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:: Adding environment variables to workaround the "Argument Escape" problem with passing arguments to
+:: .cmd calls from dotnet-cli-build scripts.
+::
+:: set __BuildArch=
+:: set __DotNetHostBinDir=
+set __BuildArch=%__WorkaroundCliCoreHostBuildArch%
+set __DotNetHostBinDir=%__WorkaroundCliCoreHostBinDir%
+::
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 :Arg_Loop
 if "%1" == "" goto ArgsDone
@@ -41,7 +49,12 @@ pushd "%__ProjectDir%\deps"
 popd
 
 :: Clean up existing nupkgs
-rmdir /s /q "%__ProjectDir%\bin"
+if exist "%__ProjectDir%\bin" (rmdir /s /q "%__ProjectDir%\bin")
+
+:: Remove the version.txt file
+git rev-parse HEAD > "%__ProjectDir%\version.txt"
+echo Obtaining commit hash for version file... git rev-parse HEAD
+type "%__ProjectDir%\version.txt"
 
 :: Package the assets using Tools
 "%__ProjectDir%\Tools\corerun" "%__ProjectDir%\Tools\MSBuild.exe" "%__ProjectDir%\projects\Microsoft.NETCore.DotNetHostPolicy.builds" /p:Platform=%__BuildArch% /p:DotNetHostBinDir=%__DotNetHostBinDir% /p:TargetsWindows=true

@@ -117,10 +117,13 @@ namespace Microsoft.DotNet.Cli.Build
                 File.Copy(Path.Combine(cmakeOut, "cli", "fxr", configuration, "hostfxr.dll"), Path.Combine(Dirs.Corehost, "hostfxr.dll"), overwrite: true);
                 File.Copy(Path.Combine(cmakeOut, "cli", "fxr", configuration, "hostfxr.pdb"), Path.Combine(Dirs.Corehost, "hostfxr.pdb"), overwrite: true);
 
-                Exec(Path.Combine(corehostSrcDir, "packaging", "pack.cmd"),
-                    IsWinx86 ? "x86" : "x64",
-                    "/hostbindir",
-                    Dirs.Corehost);
+                Command.Create(Path.Combine(corehostSrcDir, "packaging", "pack.cmd"))
+                    // Workaround to arg escaping adding backslashes for arguments to .cmd scripts.
+                    .Environment("__WorkaroundCliCoreHostBuildArch", IsWinx86 ? "x86" : "x64")
+                    .Environment("__WorkaroundCliCoreHostBinDir", Dirs.Corehost)
+                    .ForwardStdOut()
+                    .ForwardStdErr()
+                    .Execute();
             }
             else
             {

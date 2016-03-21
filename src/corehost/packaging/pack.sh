@@ -94,6 +94,10 @@ else
     init_distro_name
 fi
 
+git rev-parse HEAD > "$__project_dir/version.txt"
+echo "Obtaining commit hash for version file... git rev-parse HEAD"
+cat "$__project_dir/version.txt"
+
 $__corerun $__msbuild $__project_dir/projects/Microsoft.NETCore.DotNetHostPolicy.builds /p:Platform=$__build_arch /p:DotNetHostBinDir=$__dotnet_host_bin_dir /p:$__targets_param /p:DistroName=$__distro_name
 $__corerun $__msbuild $__project_dir/projects/Microsoft.NETCore.DotNetHostResolver.builds /p:Platform=$__build_arch /p:DotNetHostBinDir=$__dotnet_host_bin_dir /p:$__targets_param /p:DistroName=$__distro_name
 $__corerun $__msbuild $__project_dir/projects/Microsoft.NETCore.DotNetHost.builds /p:Platform=$__build_arch /p:DotNetHostBinDir=$__dotnet_host_bin_dir /p:$__targets_param /p:DistroName=$__distro_name
