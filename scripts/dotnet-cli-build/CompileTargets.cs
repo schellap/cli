@@ -470,7 +470,7 @@ namespace Microsoft.DotNet.Cli.Build
             foreach (var assemblyToCrossgen in AssembliesToCrossGen)
             {
                 c.Info($"Crossgenning {assemblyToCrossgen}");
-                ExecInSilent(outputDir, crossgen, "-FragileNonVersionable", "-nologo", "-platform_assemblies_paths", outputDir, assemblyToCrossgen);
+                ExecInSilent(outputDir, crossgen, "-readytorun", "-nologo", "-platform_assemblies_paths", outputDir, assemblyToCrossgen);
             }
 
             c.Info("Crossgen complete");
@@ -492,9 +492,9 @@ namespace Microsoft.DotNet.Cli.Build
         public static BuildTargetResult CrossgenSharedFx(BuildTargetContext c, string pathToAssemblies)
         {
             // Check if we need to skip crossgen
-            if (!string.Equals(Environment.GetEnvironmentVariable("CROSSGEN_SHAREDFRAMEWORK"), "1"))
+            if (string.Equals(Environment.GetEnvironmentVariable("DONT_CROSSGEN_SHAREDFRAMEWORK"), "1"))
             {
-                c.Warn("Skipping crossgen for SharedFx because CROSSGEN_SHAREDFRAMEWORK is not set to 1");
+                c.Warn("Skipping crossgen for SharedFx because DONT_CROSSGEN_SHAREDFRAMEWORK is set to 1");
                 return c.Success();
             }
 
