@@ -2,7 +2,7 @@
 
 usage()
 {
-   echo "Usage: ${BASH_SOURCE[0]} [--osx] --arch x64/x86/arm --hostbindir path-to-binaries"
+   echo "Usage: ${BASH_SOURCE[0]} --osx [1/0] --arch x64/x86/arm --hostbindir path-to-binaries"
    exit 1
 }
 
@@ -36,7 +36,7 @@ done
 __project_dir="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
 __build_arch=
 __dotnet_host_bin_dir=
-__is_osx=0
+__is_osx="0"
 __distro_name=
 
 # parse arguments
@@ -52,7 +52,8 @@ while [ "$1" != "" ]; do
             __build_arch=$1
             ;;
         --osx)
-            __is_osx=1
+            shift
+            __is_osx=$1
             ;;
         --hostbindir) 
             shift
@@ -88,7 +89,7 @@ __corerun="$__project_dir/Tools/corerun"
 __msbuild="$__project_dir/Tools/MSBuild.exe"
 
 __targets_param="TargetsLinux=true"
-if [ $__is_osx == 1 ]; then
+if [ "$__is_osx" -eq "1" ]; then
     __targets_param="TargetsOSX=true"
 else
     init_distro_name

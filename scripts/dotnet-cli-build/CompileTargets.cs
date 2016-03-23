@@ -139,7 +139,8 @@ namespace Microsoft.DotNet.Cli.Build
                 File.Copy(Path.Combine(cmakeOut, "cli", "fxr", DotnetHostFxrBaseName), Path.Combine(Dirs.Corehost, DotnetHostFxrBaseName), overwrite: true);
                 
                 Exec(Path.Combine(corehostSrcDir, "packaging", "pack.sh"),
-                    CurrentPlatform.IsOSX ? "--osx" : "",
+                    "--osx",
+                    CurrentPlatform.IsOSX ? "1" : "0",
                     "--arch",
                     "x64",
                     "--hostbindir",
