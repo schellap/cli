@@ -12,6 +12,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Dependency Include="Microsoft.NETCore.DotNetHost">
+      <Version>$(HostFullVersion)</Version>
+    </Dependency>
     <ProjectReference Include="win\Microsoft.NETCore.DotNetHostResolver.pkgproj">
       <Platform>amd64</Platform>
     </ProjectReference>

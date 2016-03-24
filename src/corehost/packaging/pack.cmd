@@ -57,9 +57,12 @@ echo Obtaining commit hash for version file... git rev-parse HEAD
 type "%__ProjectDir%\version.txt"
 
 :: Package the assets using Tools
+copy /y "%__DotNetHostBinDir%\corehost.exe" "%__DotNetHostBinDir%\dotnet.exe"
 "%__ProjectDir%\Tools\corerun" "%__ProjectDir%\Tools\MSBuild.exe" "%__ProjectDir%\projects\Microsoft.NETCore.DotNetHostPolicy.builds" /p:Platform=%__BuildArch% /p:DotNetHostBinDir=%__DotNetHostBinDir% /p:TargetsWindows=true
 "%__ProjectDir%\Tools\corerun" "%__ProjectDir%\Tools\MSBuild.exe" "%__ProjectDir%\projects\Microsoft.NETCore.DotNetHostResolver.builds" /p:Platform=%__BuildArch% /p:DotNetHostBinDir=%__DotNetHostBinDir% /p:TargetsWindows=true
 "%__ProjectDir%\Tools\corerun" "%__ProjectDir%\Tools\MSBuild.exe" "%__ProjectDir%\projects\Microsoft.NETCore.DotNetHost.builds" /p:Platform=%__BuildArch% /p:DotNetHostBinDir=%__DotNetHostBinDir% /p:TargetsWindows=true
+
+xcopy "%__ProjectDir%\bin\packages" "%__DotNetHostBinDir%" /s /i /y
 
 exit /b 0
 

@@ -99,10 +99,11 @@ git rev-parse HEAD > "$__project_dir/version.txt"
 echo "Obtaining commit hash for version file... git rev-parse HEAD"
 cat "$__project_dir/version.txt"
 
+cp "$__dotnet_host_bin_dir/corehost" "$__dotnet_host_bin_dir/dotnet"
 $__corerun $__msbuild $__project_dir/projects/Microsoft.NETCore.DotNetHostPolicy.builds /p:Platform=$__build_arch /p:DotNetHostBinDir=$__dotnet_host_bin_dir /p:$__targets_param /p:DistroName=$__distro_name
 $__corerun $__msbuild $__project_dir/projects/Microsoft.NETCore.DotNetHostResolver.builds /p:Platform=$__build_arch /p:DotNetHostBinDir=$__dotnet_host_bin_dir /p:$__targets_param /p:DistroName=$__distro_name
 $__corerun $__msbuild $__project_dir/projects/Microsoft.NETCore.DotNetHost.builds /p:Platform=$__build_arch /p:DotNetHostBinDir=$__dotnet_host_bin_dir /p:$__targets_param /p:DistroName=$__distro_name
 
-echo $__corerun $__msbuild $__project_dir/projects/Microsoft.NETCore.DotNetHostPolicy.builds /p:Platform=$__build_arch /p:DotNetHostBinDir=$__dotnet_host_bin_dir /p:$__targets_param
-exit 0
+cp -rf "$__project_dir/bin/packages" "$__dotnet_host_bin_dir"
 
+exit 0

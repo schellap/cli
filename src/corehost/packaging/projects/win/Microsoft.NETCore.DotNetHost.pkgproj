@@ -11,7 +11,7 @@
   </PropertyGroup>
   
   <ItemGroup>
-    <ArchitectureSpecificNativeFile Include="$(DotNetHostBinDir)/corehost.exe" />
+    <ArchitectureSpecificNativeFile Include="$(DotNetHostBinDir)/dotnet.exe" />
 
     <File Include="@(ArchitectureSpecificNativeFile)">
       <TargetPath>runtimes/$(PackageTargetRuntime)/native</TargetPath>

@@ -10,7 +10,7 @@
   </PropertyGroup>
   
   <ItemGroup>
-    <ArchitectureSpecificNativeFile Include="$(DotNetHostBinDir)/corehost" />
+    <ArchitectureSpecificNativeFile Include="$(DotNetHostBinDir)/dotnet" />
 
     <File Include="@(ArchitectureSpecificNativeFile)">
       <TargetPath>runtimes/$(PackageTargetRuntime)/native</TargetPath>

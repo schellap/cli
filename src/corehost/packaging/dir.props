@@ -34,7 +34,11 @@
     <HostPolicyVersion>1.0.0</HostPolicyVersion>
     <HostResolverVersion>1.0.0</HostResolverVersion>
     <HostVersion>1.0.0</HostVersion>
-    <PreReleaseLabel>rc3</PreReleaseLabel>
+    <PreReleaseLabel>rc2</PreReleaseLabel>
     <BuildNumberMajor>00001</BuildNumberMajor>
+
+    <HostPolicyFullVersion>$(HostPolicyVersion)-$(PreReleaseLabel)-$(BuildNumberMajor)</HostPolicyFullVersion>
+    <HostResolverFullVersion>$(HostResolverVersion)-$(PreReleaseLabel)-$(BuildNumberMajor)</HostResolverFullVersion>
+    <HostFullVersion>$(HostVersion)-$(PreReleaseLabel)-$(BuildNumberMajor)</HostFullVersion>
   </PropertyGroup>
 </Project>

@@ -12,7 +12,7 @@
   
   <ItemGroup>
     <Dependency Include="Microsoft.NETCore.DotNetHost">
-      <Version>1.0.0-rc3-00001</Version>
+      <Version>$(HostFullVersion)</Version>
     </Dependency>
 
     <ArchitectureSpecificNativeFile Include="$(DotNetHostBinDir)/hostfxr.dll"/>
