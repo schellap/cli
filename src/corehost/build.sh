@@ -6,11 +6,12 @@
 
 usage()
 {
-    echo "Usage: $0 --arch <Architecture> --rid <Runtime Identifier> [--xcompiler <Cross C++ Compiler>]"
+    echo "Usage: $0 --arch <Architecture> --rid <Runtime Identifier> --policyver <HostPolicy library version> [--xcompiler <Cross C++ Compiler>]"
     echo ""
     echo "Options:"
     echo "  --arch <Architecture>             Target Architecture (amd64, x86, arm)"
     echo "  --rid <Runtime Identifier>        Target Runtime Identifier"
+    echo "  --policyver <HostPolicy version>  Version of the hostpolicy library"
     echo "  --xcompiler <Cross C++ Compiler>  Cross Compiler when the target is arm"
     echo "                                    e.g.) /usr/bin/arm-linux-gnueabi-g++-4.7"
 
@@ -29,6 +30,7 @@ DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
 
 __build_arch=
 __runtime_id=
+__policy_ver=
 __CrossBuild=0
 
 while [ "$1" != "" ]; do
@@ -45,6 +47,10 @@ while [ "$1" != "" ]; do
         --rid) 
             shift
             __runtime_id=$1
+            ;;
+        --policyver)
+            shift
+            __policy_ver=$1
             ;;
         --xcompiler)
             shift
@@ -78,8 +84,8 @@ __cmake_defines="${__cmake_defines} ${__define}"
 
 echo "Building Corehost from $DIR to $(pwd)"
 if [ $__CrossBuild == 1 ]; then
-    cmake "$DIR" -G "Unix Makefiles" $__cmake_defines -DCLI_CMAKE_RUNTIME_ID:STRING=$__runtime_id -DCMAKE_CXX_COMPILER="$__CrossCompiler"
+    cmake "$DIR" -G "Unix Makefiles" $__cmake_defines -DCLI_CMAKE_RUNTIME_ID:STRING=$__runtime_id -DCMAKE_CLI_HOST_POLICY_VER:STRING=$__policy_ver -DCMAKE_CXX_COMPILER="$__CrossCompiler"
 else
-    cmake "$DIR" -G "Unix Makefiles" $__cmake_defines -DCLI_CMAKE_RUNTIME_ID:STRING=$__runtime_id
+    cmake "$DIR" -G "Unix Makefiles" $__cmake_defines -DCLI_CMAKE_RUNTIME_ID:STRING=$__runtime_id -DCMAKE_CLI_HOST_POLICY_VER:STRING=$__policy_ver
 fi
 make

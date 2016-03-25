@@ -58,3 +58,12 @@ if(${CLI_CMAKE_RUNTIME_ID} STREQUAL "")
 else()
     add_definitions(-DTARGET_RUNTIME_ID="${CLI_CMAKE_RUNTIME_ID}")
 endif()
+
+if(${CLI_CMAKE_HOST_POLICY_VER} STREQUAL "")
+    message(FATAL_ERROR "Host policy version is not specified")
+else()
+    add_definitions(-DHOST_POLICY_PKG_VER="${CLI_CMAKE_HOST_POLICY_VER}")
+endif()
+
+add_definitions(-DHOST_POLICY_PKG_NAME="Microsoft.NETCore.DotNetHostPolicy")
+add_definitions(-DHOST_POLICY_PKG_REL_DIR="runtimes/${CLI_CMAKE_PKG_RID}/native")

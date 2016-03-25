@@ -31,11 +31,11 @@
 
 
   <PropertyGroup>
-    <HostPolicyVersion>1.0.0</HostPolicyVersion>
-    <HostResolverVersion>1.0.0</HostResolverVersion>
-    <HostVersion>1.0.0</HostVersion>
-    <PreReleaseLabel>rc2</PreReleaseLabel>
-    <BuildNumberMajor>00001</BuildNumberMajor>
+    <Error Condition="$(HostPolicyVersion)==''" Text="HostPolicyVersion is undefined" />
+    <Error Condition="$(HostResolverVersion)==''" Text="HostResolverVersion is undefined" />
+    <Error Condition="$(HostVersion)==''" Text="HostVersion is undefined" />
+    <Error Condition="$(PreReleaseLabel)==''" Text="PreReleaseLabel is undefined" />
+    <Error Condition="$(BuildNumberMajor)==''" Text="BuildNumberMajor is undefined" />
 
     <HostPolicyFullVersion>$(HostPolicyVersion)-$(PreReleaseLabel)-$(BuildNumberMajor)</HostPolicyFullVersion>
     <HostResolverFullVersion>$(HostResolverVersion)-$(PreReleaseLabel)-$(BuildNumberMajor)</HostResolverFullVersion>

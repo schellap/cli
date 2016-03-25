@@ -75,25 +75,28 @@ int execute_app(
 
 bool hostpolicy_exists_in_svc(pal::string_t* resolved_dir)
 {
-#ifdef COREHOST_PACKAGE_SERVICING
     pal::string_t svc_dir;
     if (!pal::getenv(_X("DOTNET_SERVICING"), &svc_dir))
     {
         return false;
     }
 
+    pal::string_t rel_dir = HOST_POLICY_PKG_REL_DIR;
+    if (DIR_SEPARATOR == '\\')
+    {
+        std::replace(rel_dir.begin(), rel_dir.end(), '/', '\\');
+    }
+
     pal::string_t path = svc_dir;
-    append_path(&path, COREHOST_PACKAGE_NAME);
-    append_path(&path, COREHOST_PACKAGE_VERSION);
-    append_path(&path, COREHOST_PACKAGE_COREHOST_RELATIVE_DIR);
+    append_path(&path, HOST_POLICY_PKG_NAME);
+    append_path(&path, HOST_POLICY_PKG_VER);
+    append_path(&path, rel_dir);
+    append_path(&path, LIBHOST_NAME);
     if (library_exists_in_dir(path, LIBHOST_NAME))
     {
         resolved_dir->assign(path);
     }
     return true;
-#else
-    return false;
-#endif
 }
 
 SHARED_API int hostfxr_main(const int argc, const pal::char_t* argv[])

@@ -2,23 +2,28 @@
 
 usage()
 {
-   echo "Usage: ${BASH_SOURCE[0]} --osx [1/0] --arch x64/x86/arm --hostbindir path-to-binaries"
+   echo "Usage: ${BASH_SOURCE[0]} --osx [1/0] --arch x64/x86/arm --hostbindir path-to-binaries" --hostver --fxrver --policyver --build --vertag
    exit 1
 }
 
-init_distro_name()
+init_distro_name_and_rid()
 {
     # Detect Distro
     if [ "$(cat /etc/*-release | grep -cim1 ubuntu)" -eq 1 ]; then
         export __distro_name=ubuntu
+        export __distro_base=ubuntu.14.04
     elif [ "$(cat /etc/*-release | grep -cim1 centos)" -eq 1 ]; then
         export __distro_name=rhel
+        export __distro_base=centos.7
     elif [ "$(cat /etc/*-release | grep -cim1 rhel)" -eq 1 ]; then
         export __distro_name=rhel
+        export __distro_base=rhel.7
     elif [ "$(cat /etc/*-release | grep -cim1 debian)" -eq 1 ]; then
         export __distro_name=debian
+        export __distro_base=
     else
         export __distro_name=""
+        export __distro_base=
     fi
 }
 
@@ -38,6 +43,11 @@ __build_arch=
 __dotnet_host_bin_dir=
 __is_osx="0"
 __distro_name=
+__host_ver=
+__fxr_ver=
+__policy_ver=
+__build_major=
+__version_tag=
 
 # parse arguments
 while [ "$1" != "" ]; do
@@ -59,6 +69,26 @@ while [ "$1" != "" ]; do
             shift
             __dotnet_host_bin_dir=$1
             ;;
+        --hostver) 
+            shift
+            __host_ver=$1
+            ;;
+        --fxrver) 
+            shift
+            __fxr_ver=$1
+            ;;
+        --policyver) 
+            shift
+            __policy_ver=$1
+            ;;
+        --build) 
+            shift
+            __build_major=$1
+            ;;
+        --vertag) 
+            shift
+            __version_tag=$1
+            ;;
         *)
         echo "Unknown argument to pack.sh $1"; exit 1
     esac
@@ -72,6 +102,12 @@ fi
 if [ -z $__build_arch ]; then
     usage
 fi
+if [ -z $__distro_base ]; then
+    echo "Unknown OS"
+    exit -1
+fi
+
+__base_rid=$__distro_base-
 
 # setup msbuild
 "$__project_dir/init-tools.sh"
@@ -100,9 +136,12 @@ echo "Obtaining commit hash for version file... git rev-parse HEAD"
 cat "$__project_dir/version.txt"
 
 cp "$__dotnet_host_bin_dir/corehost" "$__dotnet_host_bin_dir/dotnet"
-$__corerun $__msbuild $__project_dir/projects/Microsoft.NETCore.DotNetHostPolicy.builds /p:Platform=$__build_arch /p:DotNetHostBinDir=$__dotnet_host_bin_dir /p:$__targets_param /p:DistroName=$__distro_name
-$__corerun $__msbuild $__project_dir/projects/Microsoft.NETCore.DotNetHostResolver.builds /p:Platform=$__build_arch /p:DotNetHostBinDir=$__dotnet_host_bin_dir /p:$__targets_param /p:DistroName=$__distro_name
-$__corerun $__msbuild $__project_dir/projects/Microsoft.NETCore.DotNetHost.builds /p:Platform=$__build_arch /p:DotNetHostBinDir=$__dotnet_host_bin_dir /p:$__targets_param /p:DistroName=$__distro_name
+
+$__common_parameters="/p:Platform=$__build_arch /p:DotNetHostBinDir=$__dotnet_host_bin_dir /p:$__targets_param /p:DistroName=$__distro_name /p:HostVersion=$__host_ver /p:HostResolverVersion=$__fxr_ver /p:HostPolicyVersion=$__policy_ver /p:BuildMajor=$__build_major /p:PreReleaseLabel=$__version_tag"
+
+$__corerun $__msbuild $__project_dir/projects/Microsoft.NETCore.DotNetHostPolicy.builds $__common_parameters
+$__corerun $__msbuild $__project_dir/projects/Microsoft.NETCore.DotNetHostResolver.builds $__common_parameters
+$__corerun $__msbuild $__project_dir/projects/Microsoft.NETCore.DotNetHost.builds $__common_parameters
 
 cp -rf "$__project_dir/bin/packages" "$__dotnet_host_bin_dir"
 
