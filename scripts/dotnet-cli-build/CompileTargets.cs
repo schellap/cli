@@ -14,7 +14,7 @@ namespace Microsoft.DotNet.Cli.Build
 {
     public class CompileTargets
     {
-        public static readonly string CoreCLRVersion = "1.0.2-rc2-23911";
+        public static readonly string CoreCLRVersion = "1.0.2-rc2-23924";
         public static readonly string AppDepSdkVersion = "1.0.6-prerelease-00003";
         public static readonly bool IsWinx86 = CurrentPlatform.IsWindows && CurrentArchitecture.Isx86;
 
@@ -78,7 +78,7 @@ namespace Microsoft.DotNet.Cli.Build
             var configuration = c.BuildContext.Get<string>("Configuration");
 
             // Run the build
-            string rid = PlatformServices.Default.Runtime.GetRuntimeIdentifier();
+            string rid = GetRuntimeId();
             string corehostSrcDir = Path.Combine(c.BuildContext.BuildDirectory, "src", "corehost");
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
@@ -148,6 +148,26 @@ namespace Microsoft.DotNet.Cli.Build
             }
 
             return c.Success();
+        }
+
+        private static string GetRuntimeId()
+        {
+            string info = DotNetCli.Stage0.Exec("", "--info").CaptureStdOut().Execute().StdOut;
+            string rid = Array.Find<string>(info.Split(Environment.NewLine.ToCharArray()), (e) => e.Contains("RID:"))?.Replace("RID:", "").Trim();
+
+            // TODO: when Stage0 is updated with the new --info, remove this legacy check for --version
+            if (string.IsNullOrEmpty(rid))
+            {
+                string version = DotNetCli.Stage0.Exec("", "--version").CaptureStdOut().Execute().StdOut;
+                rid = Array.Find<string>(version.Split(Environment.NewLine.ToCharArray()), (e) => e.Contains("Runtime Id:")).Replace("Runtime Id:", "").Trim();
+            }
+
+            if (string.IsNullOrEmpty(rid))
+            {
+                throw new BuildFailureException("Could not find the Runtime ID from Stage0 --info or --version");
+            }
+
+            return rid;
         }
 
         [Target]
@@ -294,7 +314,8 @@ namespace Microsoft.DotNet.Cli.Build
                 var runtimeGraphGeneratorExe = Path.Combine(runtimeGraphGeneratorOutput, $"{runtimeGraphGeneratorName}{Constants.ExeSuffix}");
 
                 Cmd(runtimeGraphGeneratorExe, "--project", SharedFrameworkSourceRoot, "--deps", destinationDeps, runtimeGraphGeneratorRuntime)
-                    .Execute();
+                    .Execute()
+                    .EnsureSuccessful();
             }
             else
             {
