@@ -109,13 +109,13 @@ if [ -z $__distro_base ]; then
     exit -1
 fi
 
-__build_arch_lowcase=echo "$__build_arch" | tr '[:upper:]' '[:lower:]'
+__build_arch_lowcase=$(echo "$__build_arch" | tr '[:upper:]' '[:lower:]')
 __base_rid=$__distro_base-$__build_arch_lowcase
 
 echo "Building Corehost from $DIR to $(pwd)"
 if [ $__CrossBuild == 1 ]; then
-    cmake "$DIR" -G "Unix Makefiles" $__cmake_defines -DCLI_CMAKE_RUNTIME_ID:STRING=$__runtime_id -DCMAKE_CLI_HOST_POLICY_VER:STRING=$__policy_ver -DCMAKE_CXX_COMPILER="$__CrossCompiler" -DCLI_CMAKE_PKG_RID=$__base_rid
+    cmake "$DIR" -G "Unix Makefiles" $__cmake_defines -DCLI_CMAKE_RUNTIME_ID:STRING=$__runtime_id -DCLI_CMAKE_HOST_POLICY_VER:STRING=$__policy_ver -DCMAKE_CXX_COMPILER="$__CrossCompiler" -DCLI_CMAKE_PKG_RID:STRING=$__base_rid
 else
-    cmake "$DIR" -G "Unix Makefiles" $__cmake_defines -DCLI_CMAKE_RUNTIME_ID:STRING=$__runtime_id -DCMAKE_CLI_HOST_POLICY_VER:STRING=$__policy_ver -DCLI_CMAKE_PKG_RID=$__base_rid
+    cmake "$DIR" -G "Unix Makefiles" $__cmake_defines -DCLI_CMAKE_RUNTIME_ID:STRING=$__runtime_id -DCLI_CMAKE_HOST_POLICY_VER:STRING=$__policy_ver -DCLI_CMAKE_PKG_RID:STRING=$__base_rid
 fi
 make

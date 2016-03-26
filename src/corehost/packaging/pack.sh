@@ -122,7 +122,7 @@ fi
 
 cp "$__dotnet_host_bin_dir/corehost" "$__dotnet_host_bin_dir/dotnet"
 
-$__common_parameters="/p:Platform=$__build_arch /p:DotNetHostBinDir=$__dotnet_host_bin_dir /p:$__targets_param /p:DistroName=$__distro_name /p:HostVersion=$__host_ver /p:HostResolverVersion=$__fxr_ver /p:HostPolicyVersion=$__policy_ver /p:BuildMajor=$__build_major /p:PreReleaseLabel=$__version_tag"
+__common_parameters="/p:Platform=$__build_arch /p:DotNetHostBinDir=$__dotnet_host_bin_dir /p:$__targets_param /p:DistroName=$__distro_name /p:HostVersion=$__host_ver /p:HostResolverVersion=$__fxr_ver /p:HostPolicyVersion=$__policy_ver /p:BuildNumberMajor=$__build_major /p:PreReleaseLabel=$__version_tag"
 
 $__corerun $__msbuild $__project_dir/projects/Microsoft.NETCore.DotNetHostPolicy.builds $__common_parameters || exit 1
 $__corerun $__msbuild $__project_dir/projects/Microsoft.NETCore.DotNetHostResolver.builds $__common_parameters || exit 1
