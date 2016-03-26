@@ -59,11 +59,6 @@ popd
 :: Clean up existing nupkgs
 if exist "%__ProjectDir%\bin" (rmdir /s /q "%__ProjectDir%\bin")
 
-:: Remove the version.txt file
-git rev-parse HEAD > "%__ProjectDir%\version.txt"
-echo Obtaining commit hash for version file... git rev-parse HEAD
-type "%__ProjectDir%\version.txt"
-
 :: Package the assets using Tools
 copy /y "%__DotNetHostBinDir%\corehost.exe" "%__DotNetHostBinDir%\dotnet.exe"
 "%__ProjectDir%\Tools\corerun" "%__ProjectDir%\Tools\MSBuild.exe" "%__ProjectDir%\projects\Microsoft.NETCore.DotNetHostPolicy.builds" /p:Platform=%__BuildArch% /p:DotNetHostBinDir=%__DotNetHostBinDir% /p:TargetsWindows=true /p:HostVersion=%__HostVer% /p:HostResolverVersion=%__FxrVer% /p:HostPolicyVersion=%__PolicyVer% /p:BuildMajor=%__BuildMajor% /p:PreReleaseLabel=%__VersionTag%

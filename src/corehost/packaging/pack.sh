@@ -6,24 +6,19 @@ usage()
    exit 1
 }
 
-init_distro_name_and_rid()
+init_distro_name()
 {
     # Detect Distro
     if [ "$(cat /etc/*-release | grep -cim1 ubuntu)" -eq 1 ]; then
         export __distro_name=ubuntu
-        export __distro_base=ubuntu.14.04
     elif [ "$(cat /etc/*-release | grep -cim1 centos)" -eq 1 ]; then
         export __distro_name=rhel
-        export __distro_base=centos.7
     elif [ "$(cat /etc/*-release | grep -cim1 rhel)" -eq 1 ]; then
         export __distro_name=rhel
-        export __distro_base=rhel.7
     elif [ "$(cat /etc/*-release | grep -cim1 debian)" -eq 1 ]; then
         export __distro_name=debian
-        export __distro_base=
     else
         export __distro_name=""
-        export __distro_base=
     fi
 }
 
@@ -102,12 +97,6 @@ fi
 if [ -z $__build_arch ]; then
     usage
 fi
-if [ -z $__distro_base ]; then
-    echo "Unknown OS"
-    exit -1
-fi
-
-__base_rid=$__distro_base-
 
 # setup msbuild
 "$__project_dir/init-tools.sh"
@@ -130,10 +119,6 @@ if [ "$__is_osx" -eq "1" ]; then
 else
     init_distro_name
 fi
-
-git rev-parse HEAD > "$__project_dir/version.txt"
-echo "Obtaining commit hash for version file... git rev-parse HEAD"
-cat "$__project_dir/version.txt"
 
 cp "$__dotnet_host_bin_dir/corehost" "$__dotnet_host_bin_dir/dotnet"
 

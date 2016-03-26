@@ -28,6 +28,27 @@ while [ -h "$SOURCE" ]; do # resolve $SOURCE until the file is no longer a symli
 done
 DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
 
+init_distro_name_and_rid()
+{
+    # Detect Distro
+    if [ "$(cat /etc/*-release | grep -cim1 ubuntu)" -eq 1 ]; then
+        export __distro_name=ubuntu
+        export __distro_base=ubuntu.14.04
+    elif [ "$(cat /etc/*-release | grep -cim1 centos)" -eq 1 ]; then
+        export __distro_name=rhel
+        export __distro_base=centos.7
+    elif [ "$(cat /etc/*-release | grep -cim1 rhel)" -eq 1 ]; then
+        export __distro_name=rhel
+        export __distro_base=rhel.7
+    elif [ "$(cat /etc/*-release | grep -cim1 debian)" -eq 1 ]; then
+        export __distro_name=debian
+        export __distro_base=
+    else
+        export __distro_name=""
+        export __distro_base=
+    fi
+}
+
 __build_arch=
 __runtime_id=
 __policy_ver=
@@ -82,10 +103,19 @@ esac
 __cmake_defines="${__cmake_defines} ${__define}"
 
 
+init_distro_name_and_rid
+if [ -z $__distro_base ]; then
+    echo "Unknown OS"
+    exit -1
+fi
+
+__build_arch_lowcase=echo "$__build_arch" | tr '[:upper:]' '[:lower:]'
+__base_rid=$__distro_base-$__build_arch_lowcase
+
 echo "Building Corehost from $DIR to $(pwd)"
 if [ $__CrossBuild == 1 ]; then
-    cmake "$DIR" -G "Unix Makefiles" $__cmake_defines -DCLI_CMAKE_RUNTIME_ID:STRING=$__runtime_id -DCMAKE_CLI_HOST_POLICY_VER:STRING=$__policy_ver -DCMAKE_CXX_COMPILER="$__CrossCompiler"
+    cmake "$DIR" -G "Unix Makefiles" $__cmake_defines -DCLI_CMAKE_RUNTIME_ID:STRING=$__runtime_id -DCMAKE_CLI_HOST_POLICY_VER:STRING=$__policy_ver -DCMAKE_CXX_COMPILER="$__CrossCompiler" -DCLI_CMAKE_PKG_RID=$__base_rid
 else
-    cmake "$DIR" -G "Unix Makefiles" $__cmake_defines -DCLI_CMAKE_RUNTIME_ID:STRING=$__runtime_id -DCMAKE_CLI_HOST_POLICY_VER:STRING=$__policy_ver
+    cmake "$DIR" -G "Unix Makefiles" $__cmake_defines -DCLI_CMAKE_RUNTIME_ID:STRING=$__runtime_id -DCMAKE_CLI_HOST_POLICY_VER:STRING=$__policy_ver -DCLI_CMAKE_PKG_RID=$__base_rid
 fi
 make

@@ -81,18 +81,18 @@ bool hostpolicy_exists_in_svc(pal::string_t* resolved_dir)
         return false;
     }
 
-    pal::string_t rel_dir = HOST_POLICY_PKG_REL_DIR;
+    pal::string_t rel_dir = _STRINGIFY(HOST_POLICY_PKG_REL_DIR);
     if (DIR_SEPARATOR == '\\')
     {
         std::replace(rel_dir.begin(), rel_dir.end(), '/', '\\');
     }
 
     pal::string_t path = svc_dir;
-    append_path(&path, HOST_POLICY_PKG_NAME);
-    append_path(&path, HOST_POLICY_PKG_VER);
-    append_path(&path, rel_dir);
+    append_path(&path, _STRINGIFY(HOST_POLICY_PKG_NAME));
+    append_path(&path, _STRINGIFY(HOST_POLICY_PKG_VER));
+    append_path(&path, rel_dir.c_str());
     append_path(&path, LIBHOST_NAME);
-    if (library_exists_in_dir(path, LIBHOST_NAME))
+    if (library_exists_in_dir(path, LIBHOST_NAME, nullptr))
     {
         resolved_dir->assign(path);
     }

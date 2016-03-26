@@ -69,23 +69,29 @@ namespace Microsoft.DotNet.Cli.Build
         [Target]
         public static BuildTargetResult CompileCoreHost(BuildTargetContext c)
         {
-            var hostVersion = "1.0.0";
-            var hostPolicyVersion = "1.0.0";
-            var hostFxrVersion = "1.0.0";
-            var releaseTag = c.BuildContext.Get<BuildVersion>("BuildVersion").ReleaseSuffix;
-            var buildMajor = c.BuildContext.Get<BuildVersion>("BuildVersion").CommitCountString;
+            var hostVer = "1.0.0";
+            var hostPolicyVer = "1.0.0";
+            var hostFxrVer = "1.0.0";
+            var buildVersion = c.BuildContext.Get<BuildVersion>("BuildVersion");
+            var versionTag = buildVersion.ReleaseSuffix;
+            var buildMajor = buildVersion.CommitCountString;
+
+            var hostPolicyFullVer = $"{hostPolicyVer}-{versionTag}-{buildMajor}";
+
             // Generate build files
             var cmakeOut = Path.Combine(Dirs.Corehost, "cmake");
 
             Rmdir(cmakeOut);
             Mkdirp(cmakeOut);
+            var version = buildVersion.NuGetVersion;
+            var content = $@"{c.BuildContext["CommitHash"]}{Environment.NewLine}{version}{Environment.NewLine}";
+            File.WriteAllText(Path.Combine(c.BuildContext.BuildDirectory, "src", "corehost", "packaging", "version.txt"), content);
 
             var configuration = c.BuildContext.Get<string>("Configuration");
 
             // Run the build
             string rid = GetRuntimeId();
             string corehostSrcDir = Path.Combine(c.BuildContext.BuildDirectory, "src", "corehost");
-            var hostPolicyVer = $"-DCLI_CMAKE_HOST_POLICY_VER={hostPolicyVer}-{releaseTag}-{buildMajor}";
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
                 // Why does Windows directly call cmake but Linux/Mac calls "build.sh" in the corehost dir?
@@ -93,12 +99,17 @@ namespace Microsoft.DotNet.Cli.Build
                 var visualStudio = IsWinx86 ? "Visual Studio 14 2015" : "Visual Studio 14 2015 Win64";
                 var archMacro = IsWinx86 ? "-DCLI_CMAKE_PLATFORM_ARCH_I386=1" : "-DCLI_CMAKE_PLATFORM_ARCH_AMD64=1";
                 var ridMacro = $"-DCLI_CMAKE_RUNTIME_ID:STRING={rid}";
+                var arch = IsWinx86 ? "x86" : "x64";
+                var baseSupportedRid = $"win7-{arch}";
+                var cmakeHostPolicyVer = $"-DCLI_CMAKE_HOST_POLICY_VER:STRING={hostPolicyFullVer}";
+                var cmakeBaseRid = $"-DCLI_CMAKE_PKG_RID:STRING={baseSupportedRid}";
 
                 ExecIn(cmakeOut, "cmake",
                     corehostSrcDir,
                     archMacro,
                     ridMacro,
-                    hostPolicyVer,
+                    cmakeHostPolicyVer,
+                    cmakeBaseRid,
                     "-G",
                     visualStudio);
 
@@ -126,8 +137,13 @@ namespace Microsoft.DotNet.Cli.Build
 
                 Command.Create(Path.Combine(corehostSrcDir, "packaging", "pack.cmd"))
                     // Workaround to arg escaping adding backslashes for arguments to .cmd scripts.
-                    .Environment("__WorkaroundCliCoreHostBuildArch", IsWinx86 ? "x86" : "x64")
+                    .Environment("__WorkaroundCliCoreHostBuildArch", arch)
                     .Environment("__WorkaroundCliCoreHostBinDir", Dirs.Corehost)
+                    .Environment("__WorkaroundCliCoreHostPolicyVer", hostPolicyVer)
+                    .Environment("__WorkaroundCliCoreHostFxrVer", hostFxrVer)
+                    .Environment("__WorkaroundCliCoreHostVer", hostVer)
+                    .Environment("__WorkaroundCliBuildMajor", buildMajor)
+                    .Environment("__WorkaroundCliVersionTag", versionTag)
                     .ForwardStdOut()
                     .ForwardStdErr()
                     .Execute();
@@ -135,10 +151,10 @@ namespace Microsoft.DotNet.Cli.Build
             else
             {
                 ExecIn(cmakeOut, Path.Combine(c.BuildContext.BuildDirectory, "src", "corehost", "build.sh"),
-                        "--policyver",
-                        hostPolicyVer,
                         "--arch",
                         "x64",
+                        "--policyver",
+                        hostPolicyFullVer,
                         "--rid",
                         rid);
 
@@ -153,7 +169,17 @@ namespace Microsoft.DotNet.Cli.Build
                     "--arch",
                     "x64",
                     "--hostbindir",
-                    Dirs.Corehost);
+                    Dirs.Corehost,
+                    "--policyver",
+                    hostPolicyVer,
+                    "--fxrver",
+                    hostFxrVer,
+                    "--hostver",
+                    hostVer,
+                    "--build",
+                    buildMajor,
+                    "--vertag",
+                    versionTag);
             }
 
             return c.Success();

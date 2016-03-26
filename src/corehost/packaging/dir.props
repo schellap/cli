@@ -1,4 +1,4 @@
-<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project ToolsVersion="12.0" DefaultTargets="Build" InitialTargets="ValidateArgs" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <ProjectDir>$(MSBuildThisFileDirectory)</ProjectDir>
 
@@ -31,14 +31,16 @@
 
 
   <PropertyGroup>
+    <HostPolicyFullVersion>$(HostPolicyVersion)-$(PreReleaseLabel)-$(BuildNumberMajor)</HostPolicyFullVersion>
+    <HostResolverFullVersion>$(HostResolverVersion)-$(PreReleaseLabel)-$(BuildNumberMajor)</HostResolverFullVersion>
+    <HostFullVersion>$(HostVersion)-$(PreReleaseLabel)-$(BuildNumberMajor)</HostFullVersion>
+  </PropertyGroup>
+
+  <Target Name="ValidateArgs">
     <Error Condition="$(HostPolicyVersion)==''" Text="HostPolicyVersion is undefined" />
     <Error Condition="$(HostResolverVersion)==''" Text="HostResolverVersion is undefined" />
     <Error Condition="$(HostVersion)==''" Text="HostVersion is undefined" />
     <Error Condition="$(PreReleaseLabel)==''" Text="PreReleaseLabel is undefined" />
     <Error Condition="$(BuildNumberMajor)==''" Text="BuildNumberMajor is undefined" />
-
-    <HostPolicyFullVersion>$(HostPolicyVersion)-$(PreReleaseLabel)-$(BuildNumberMajor)</HostPolicyFullVersion>
-    <HostResolverFullVersion>$(HostResolverVersion)-$(PreReleaseLabel)-$(BuildNumberMajor)</HostResolverFullVersion>
-    <HostFullVersion>$(HostVersion)-$(PreReleaseLabel)-$(BuildNumberMajor)</HostFullVersion>
-  </PropertyGroup>
+  </Target>
 </Project>
