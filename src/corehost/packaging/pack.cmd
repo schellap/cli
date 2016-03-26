@@ -11,11 +11,11 @@ set __ThisScriptFull="%~f0"
 ::
 set __BuildArch=%__WorkaroundCliCoreHostBuildArch%
 set __DotNetHostBinDir=%__WorkaroundCliCoreHostBinDir%
-set __HostVer=%__WorkaroundCliHostVer%
-set __FxrVer=%__WorkaroundCliFxrVer%
-set __PolicyVer=%__WorkaroundCliPolicyVer%
-set __BuildMajor=%__WorkaroundCliBuild%
-set __VersionTag=%__WorkaroundCliVerTag%
+set __HostVer=%__WorkaroundCliCoreHostVer%
+set __FxrVer=%__WorkaroundCliCoreHostFxrVer%
+set __PolicyVer=%__WorkaroundCliCoreHostPolicyVer%
+set __BuildMajor=%__WorkaroundCliCoreHostBuildMajor%
+set __VersionTag=%__WorkaroundCliCoreHostVersionTag%
 ::
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -60,12 +60,17 @@ popd
 if exist "%__ProjectDir%\bin" (rmdir /s /q "%__ProjectDir%\bin")
 
 :: Package the assets using Tools
-copy /y "%__DotNetHostBinDir%\corehost.exe" "%__DotNetHostBinDir%\dotnet.exe"
-"%__ProjectDir%\Tools\corerun" "%__ProjectDir%\Tools\MSBuild.exe" "%__ProjectDir%\projects\Microsoft.NETCore.DotNetHostPolicy.builds" /p:Platform=%__BuildArch% /p:DotNetHostBinDir=%__DotNetHostBinDir% /p:TargetsWindows=true /p:HostVersion=%__HostVer% /p:HostResolverVersion=%__FxrVer% /p:HostPolicyVersion=%__PolicyVer% /p:BuildMajor=%__BuildMajor% /p:PreReleaseLabel=%__VersionTag%
-"%__ProjectDir%\Tools\corerun" "%__ProjectDir%\Tools\MSBuild.exe" "%__ProjectDir%\projects\Microsoft.NETCore.DotNetHostResolver.builds" /p:Platform=%__BuildArch% /p:DotNetHostBinDir=%__DotNetHostBinDir% /p:TargetsWindows=true /p:HostVersion=%__HostVer% /p:HostResolverVersion=%__FxrVer% /p:HostPolicyVersion=%__PolicyVer% /p:BuildMajor=%__BuildMajor% /p:PreReleaseLabel=%__VersionTag%
-"%__ProjectDir%\Tools\corerun" "%__ProjectDir%\Tools\MSBuild.exe" "%__ProjectDir%\projects\Microsoft.NETCore.DotNetHost.builds" /p:Platform=%__BuildArch% /p:DotNetHostBinDir=%__DotNetHostBinDir% /p:TargetsWindows=true /p:HostVersion=%__HostVer% /p:HostResolverVersion=%__FxrVer% /p:HostPolicyVersion=%__PolicyVer% /p:BuildMajor=%__BuildMajor% /p:PreReleaseLabel=%__VersionTag%
 
-xcopy "%__ProjectDir%\bin\packages" "%__DotNetHostBinDir%" /s /i /y
+copy /y "%__DotNetHostBinDir%\corehost.exe" "%__DotNetHostBinDir%\dotnet.exe"
+
+"%__ProjectDir%\Tools\corerun" "%__ProjectDir%\Tools\MSBuild.exe" "%__ProjectDir%\projects\Microsoft.NETCore.DotNetHostPolicy.builds" /p:Platform=%__BuildArch% /p:DotNetHostBinDir=%__DotNetHostBinDir% /p:TargetsWindows=true /p:HostVersion=%__HostVer% /p:HostResolverVersion=%__FxrVer% /p:HostPolicyVersion=%__PolicyVer% /p:BuildNumberMajor=%__BuildMajor% /p:PreReleaseLabel=%__VersionTag%
+if not ERRORLEVEL 0 goto :Error
+
+"%__ProjectDir%\Tools\corerun" "%__ProjectDir%\Tools\MSBuild.exe" "%__ProjectDir%\projects\Microsoft.NETCore.DotNetHostResolver.builds" /p:Platform=%__BuildArch% /p:DotNetHostBinDir=%__DotNetHostBinDir% /p:TargetsWindows=true /p:HostVersion=%__HostVer% /p:HostResolverVersion=%__FxrVer% /p:HostPolicyVersion=%__PolicyVer% /p:BuildNumberMajor=%__BuildMajor% /p:PreReleaseLabel=%__VersionTag%
+if not ERRORLEVEL 0 goto :Error
+
+"%__ProjectDir%\Tools\corerun" "%__ProjectDir%\Tools\MSBuild.exe" "%__ProjectDir%\projects\Microsoft.NETCore.DotNetHost.builds" /p:Platform=%__BuildArch% /p:DotNetHostBinDir=%__DotNetHostBinDir% /p:TargetsWindows=true /p:HostVersion=%__HostVer% /p:HostResolverVersion=%__FxrVer% /p:HostPolicyVersion=%__PolicyVer% /p:BuildNumberMajor=%__BuildMajor% /p:PreReleaseLabel=%__VersionTag%
+if not ERRORLEVEL 0 goto :Error
 
 exit /b 0
 
@@ -77,3 +82,7 @@ echo Usage:
 echo     %__ThisScriptShort% [x64/x86/arm]  /hostbindir path-to-binaries /hostver /fxrver /policyver /build /vertag
 echo.
 echo./? -? /h -h /help -help: view this message.
+
+:Error
+echo An error occurred during packing.
+exit /b 1

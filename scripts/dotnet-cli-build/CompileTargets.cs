@@ -128,8 +128,10 @@ namespace Microsoft.DotNet.Cli.Build
                     $"/p:Configuration={configuration}");
 
                 // Copy the output out
-                File.Copy(Path.Combine(cmakeOut, "cli", configuration, "corehost.exe"), Path.Combine(Dirs.Corehost, "corehost.exe"), overwrite: true);
-                File.Copy(Path.Combine(cmakeOut, "cli", configuration, "corehost.pdb"), Path.Combine(Dirs.Corehost, "corehost.pdb"), overwrite: true);
+                File.Copy(Path.Combine(cmakeOut, "cli", configuration, "dotnet.exe"), Path.Combine(Dirs.Corehost, "corehost.exe"), overwrite: true);
+                File.Copy(Path.Combine(cmakeOut, "cli", configuration, "dotnet.pdb"), Path.Combine(Dirs.Corehost, "corehost.pdb"), overwrite: true);
+                File.Copy(Path.Combine(cmakeOut, "cli", configuration, "dotnet.exe"), Path.Combine(Dirs.Corehost, "dotnet.exe"), overwrite: true);
+                File.Copy(Path.Combine(cmakeOut, "cli", configuration, "dotnet.pdb"), Path.Combine(Dirs.Corehost, "dotnet.pdb"), overwrite: true);
                 File.Copy(Path.Combine(cmakeOut, "cli", "dll", configuration, "hostpolicy.dll"), Path.Combine(Dirs.Corehost, "hostpolicy.dll"), overwrite: true);
                 File.Copy(Path.Combine(cmakeOut, "cli", "dll", configuration, "hostpolicy.pdb"), Path.Combine(Dirs.Corehost, "hostpolicy.pdb"), overwrite: true);
                 File.Copy(Path.Combine(cmakeOut, "cli", "fxr", configuration, "hostfxr.dll"), Path.Combine(Dirs.Corehost, "hostfxr.dll"), overwrite: true);
@@ -142,11 +144,12 @@ namespace Microsoft.DotNet.Cli.Build
                     .Environment("__WorkaroundCliCoreHostPolicyVer", hostPolicyVer)
                     .Environment("__WorkaroundCliCoreHostFxrVer", hostFxrVer)
                     .Environment("__WorkaroundCliCoreHostVer", hostVer)
-                    .Environment("__WorkaroundCliBuildMajor", buildMajor)
-                    .Environment("__WorkaroundCliVersionTag", versionTag)
+                    .Environment("__WorkaroundCliCoreHostBuildMajor", buildMajor)
+                    .Environment("__WorkaroundCliCoreHostVersionTag", versionTag)
                     .ForwardStdOut()
                     .ForwardStdErr()
-                    .Execute();
+                    .Execute()
+                    .EnsureSuccessful();
             }
             else
             {
@@ -159,7 +162,8 @@ namespace Microsoft.DotNet.Cli.Build
                         rid);
 
                 // Copy the output out
-                File.Copy(Path.Combine(cmakeOut, "cli", "corehost"), Path.Combine(Dirs.Corehost, CoreHostBaseName), overwrite: true);
+                File.Copy(Path.Combine(cmakeOut, "cli", "dotnet"), Path.Combine(Dirs.Corehost, "dotnet"), overwrite: true);
+                File.Copy(Path.Combine(cmakeOut, "cli", "dotnet"), Path.Combine(Dirs.Corehost, CoreHostBaseName), overwrite: true);
                 File.Copy(Path.Combine(cmakeOut, "cli", "dll", HostPolicyBaseName), Path.Combine(Dirs.Corehost, HostPolicyBaseName), overwrite: true);
                 File.Copy(Path.Combine(cmakeOut, "cli", "fxr", DotnetHostFxrBaseName), Path.Combine(Dirs.Corehost, DotnetHostFxrBaseName), overwrite: true);
                 
@@ -180,6 +184,17 @@ namespace Microsoft.DotNet.Cli.Build
                     buildMajor,
                     "--vertag",
                     versionTag);
+            }
+            int count = 0;
+            foreach (var file in Directory.GetFiles(Path.Combine(corehostSrcDir, "packaging", "bin", "packages"), "*.nupkg"))
+            {
+                var fileName = Path.GetFileName(file);
+                File.Copy(file, Path.Combine(Dirs.Corehost, fileName));
+                count ++;
+            }
+            if (count < 6)
+            {
+                throw new BuildFailureException("Not all host nupkgs were successfully created");
             }
 
             return c.Success();
