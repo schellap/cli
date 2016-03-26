@@ -54,8 +54,8 @@ namespace Microsoft.DotNet.Cli.Build
             nameof(PublishTargets.PublishDebFilesToDebianRepo),
             nameof(PublishTargets.PublishLatestCliVersionTextFile),
             nameof(PublishTargets.PublishLatestSharedFrameworkVersionTextFile),
-            nameof(PublishTargets.PublishCliVersionBadge),
-            nameof(PublishTargets.PublishCoreHostPackages))]
+            nameof(PublishTargets.PublishCoreHostPackages),
+            nameof(PublishTargets.PublishCliVersionBadge))]
         public static BuildTargetResult PublishArtifacts(BuildTargetContext c) => c.Success();
 
         [Target(

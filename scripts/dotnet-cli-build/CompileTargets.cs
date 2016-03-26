@@ -168,8 +168,6 @@ namespace Microsoft.DotNet.Cli.Build
                 File.Copy(Path.Combine(cmakeOut, "cli", "fxr", DotnetHostFxrBaseName), Path.Combine(Dirs.Corehost, DotnetHostFxrBaseName), overwrite: true);
                 
                 Exec(Path.Combine(corehostSrcDir, "packaging", "pack.sh"),
-                    "--osx",
-                    CurrentPlatform.IsOSX ? "1" : "0",
                     "--arch",
                     "x64",
                     "--hostbindir",
@@ -185,16 +183,16 @@ namespace Microsoft.DotNet.Cli.Build
                     "--vertag",
                     versionTag);
             }
-            int count = 0;
+            int runtimeCount = 0;
             foreach (var file in Directory.GetFiles(Path.Combine(corehostSrcDir, "packaging", "bin", "packages"), "*.nupkg"))
             {
                 var fileName = Path.GetFileName(file);
                 File.Copy(file, Path.Combine(Dirs.Corehost, fileName));
-                count ++;
+                runtimeCount += (fileName.StartsWith("runtime.") ? 1 : 0);
             }
-            if (count < 6)
+            if (runtimeCount < 3)
             {
-                throw new BuildFailureException("Not all host nupkgs were successfully created");
+                throw new BuildFailureException("Not all corehost nupkgs were successfully created");
             }
 
             return c.Success();

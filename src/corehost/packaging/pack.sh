@@ -2,7 +2,7 @@
 
 usage()
 {
-   echo "Usage: ${BASH_SOURCE[0]} --osx [1/0] --arch x64/x86/arm --hostbindir path-to-binaries" --hostver --fxrver --policyver --build --vertag
+   echo "Usage: ${BASH_SOURCE[0]} --arch x64/x86/arm --hostbindir path-to-binaries" --hostver --fxrver --policyver --build --vertag
    exit 1
 }
 
@@ -36,7 +36,6 @@ done
 __project_dir="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
 __build_arch=
 __dotnet_host_bin_dir=
-__is_osx="0"
 __distro_name=
 __host_ver=
 __fxr_ver=
@@ -55,10 +54,6 @@ while [ "$1" != "" ]; do
         --arch)
             shift
             __build_arch=$1
-            ;;
-        --osx)
-            shift
-            __is_osx=$1
             ;;
         --hostbindir) 
             shift
@@ -113,14 +108,13 @@ rm -rf $__project_dir/bin
 __corerun="$__project_dir/Tools/corerun"
 __msbuild="$__project_dir/Tools/MSBuild.exe"
 
-__targets_param="TargetsLinux=true"
-if [ "$__is_osx" -eq "1" ]; then
+__targets_param=
+if [ "$(uname -s)" == "Darwin" ]; then
     __targets_param="TargetsOSX=true"
 else
+    __targets_param="TargetsLinux=true"
     init_distro_name
 fi
-
-cp "$__dotnet_host_bin_dir/corehost" "$__dotnet_host_bin_dir/dotnet"
 
 __common_parameters="/p:Platform=$__build_arch /p:DotNetHostBinDir=$__dotnet_host_bin_dir /p:$__targets_param /p:DistroName=$__distro_name /p:HostVersion=$__host_ver /p:HostResolverVersion=$__fxr_ver /p:HostPolicyVersion=$__policy_ver /p:BuildNumberMajor=$__build_major /p:PreReleaseLabel=$__version_tag"
 

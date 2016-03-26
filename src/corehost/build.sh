@@ -4,6 +4,27 @@
 # I really don't know, but it doesn't work when I do that. Something about SIGCHLD not getting from clang to cmake or something.
 #       -anurse
 
+init_distro_name_and_rid()
+{
+    # Detect Distro
+    if [ "$(cat /etc/*-release | grep -cim1 ubuntu)" -eq 1 ]; then
+        export __distro_name=ubuntu
+        export __rid_plat=ubuntu.14.04
+    elif [ "$(cat /etc/*-release | grep -cim1 centos)" -eq 1 ]; then
+        export __distro_name=rhel
+        export __rid_plat=centos.7
+    elif [ "$(cat /etc/*-release | grep -cim1 rhel)" -eq 1 ]; then
+        export __distro_name=rhel
+        export __rid_plat=rhel.7
+    elif [ "$(cat /etc/*-release | grep -cim1 debian)" -eq 1 ]; then
+        export __distro_name=debian
+        export __rid_plat=
+    else
+        export __distro_name=""
+        export __rid_plat=
+    fi
+}
+
 usage()
 {
     echo "Usage: $0 --arch <Architecture> --rid <Runtime Identifier> --policyver <HostPolicy library version> [--xcompiler <Cross C++ Compiler>]"
@@ -27,27 +48,6 @@ while [ -h "$SOURCE" ]; do # resolve $SOURCE until the file is no longer a symli
   [[ "$SOURCE" != /* ]] && SOURCE="$DIR/$SOURCE" # if $SOURCE was a relative symlink, we need to resolve it relative to the path where the symlink file was located
 done
 DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
-
-init_distro_name_and_rid()
-{
-    # Detect Distro
-    if [ "$(cat /etc/*-release | grep -cim1 ubuntu)" -eq 1 ]; then
-        export __distro_name=ubuntu
-        export __distro_base=ubuntu.14.04
-    elif [ "$(cat /etc/*-release | grep -cim1 centos)" -eq 1 ]; then
-        export __distro_name=rhel
-        export __distro_base=centos.7
-    elif [ "$(cat /etc/*-release | grep -cim1 rhel)" -eq 1 ]; then
-        export __distro_name=rhel
-        export __distro_base=rhel.7
-    elif [ "$(cat /etc/*-release | grep -cim1 debian)" -eq 1 ]; then
-        export __distro_name=debian
-        export __distro_base=
-    else
-        export __distro_name=""
-        export __distro_base=
-    fi
-}
 
 __build_arch=
 __runtime_id=
@@ -88,29 +88,35 @@ __cmake_defines=
 
 case $__build_arch in
     amd64|x64)
-        __define=-DCLI_CMAKE_PLATFORM_ARCH_AMD64=1
+        __arch_define=-DCLI_CMAKE_PLATFORM_ARCH_AMD64=1
         ;;
     x86)
-        __define=-DCLI_CMAKE_PLATFORM_ARCH_I386=1
+        __arch_define=-DCLI_CMAKE_PLATFORM_ARCH_I386=1
         ;;
     arm)
-        __define=-DCLI_CMAKE_PLATFORM_ARCH_ARM=1
+        __arch_define=-DCLI_CMAKE_PLATFORM_ARCH_ARM=1
         ;;
     *)
         echo "Unknown architecture $__build_arch"; exit 1
         ;;
 esac
-__cmake_defines="${__cmake_defines} ${__define}"
+__cmake_defines="${__cmake_defines} ${__arch_define}"
 
 
-init_distro_name_and_rid
-if [ -z $__distro_base ]; then
-    echo "Unknown OS"
+__rid_plat=
+if [ "$(uname -s)" == "Darwin" ]; then
+    __rid_plat=osx.10.10
+else
+    init_distro_name_and_rid
+fi
+
+if [ -z $__rid_plat ]; then
+    echo "Unknown base rid (eg.: osx.10.10, ubuntu.14.04) being targeted"
     exit -1
 fi
 
 __build_arch_lowcase=$(echo "$__build_arch" | tr '[:upper:]' '[:lower:]')
-__base_rid=$__distro_base-$__build_arch_lowcase
+__base_rid=$__rid_plat-$__build_arch_lowcase
 
 echo "Building Corehost from $DIR to $(pwd)"
 if [ $__CrossBuild == 1 ]; then
