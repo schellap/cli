@@ -82,9 +82,9 @@ bool hostpolicy_exists_in_svc(pal::string_t* resolved_dir)
     }
 
     pal::string_t rel_dir = _STRINGIFY(HOST_POLICY_PKG_REL_DIR);
-    if (DIR_SEPARATOR == '\\')
+    if (DIR_SEPARATOR != '/')
     {
-        std::replace(rel_dir.begin(), rel_dir.end(), '/', '\\');
+        std::replace(rel_dir.begin(), rel_dir.end(), '/', DIR_SEPARATOR);
     }
 
     pal::string_t path = svc_dir;

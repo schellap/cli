@@ -66,17 +66,18 @@ namespace Microsoft.DotNet.Cli.Build
             return c.Success();
         }
 
-        [Target]
+        private static string HostVer = "1.0.0";
+        private static string HostPolicyVer = "1.0.0";
+        private static string HostFxrVer = "1.0.0";
+
+        [Target(nameof(PackageCoreHost))]
         public static BuildTargetResult CompileCoreHost(BuildTargetContext c)
         {
-            var hostVer = "1.0.0";
-            var hostPolicyVer = "1.0.0";
-            var hostFxrVer = "1.0.0";
             var buildVersion = c.BuildContext.Get<BuildVersion>("BuildVersion");
             var versionTag = buildVersion.ReleaseSuffix;
             var buildMajor = buildVersion.CommitCountString;
 
-            var hostPolicyFullVer = $"{hostPolicyVer}-{versionTag}-{buildMajor}";
+            var hostPolicyFullVer = $"{HostPolicyVer}-{versionTag}-{buildMajor}";
 
             // Generate build files
             var cmakeOut = Path.Combine(Dirs.Corehost, "cmake");
@@ -136,20 +137,6 @@ namespace Microsoft.DotNet.Cli.Build
                 File.Copy(Path.Combine(cmakeOut, "cli", "dll", configuration, "hostpolicy.pdb"), Path.Combine(Dirs.Corehost, "hostpolicy.pdb"), overwrite: true);
                 File.Copy(Path.Combine(cmakeOut, "cli", "fxr", configuration, "hostfxr.dll"), Path.Combine(Dirs.Corehost, "hostfxr.dll"), overwrite: true);
                 File.Copy(Path.Combine(cmakeOut, "cli", "fxr", configuration, "hostfxr.pdb"), Path.Combine(Dirs.Corehost, "hostfxr.pdb"), overwrite: true);
-
-                Command.Create(Path.Combine(corehostSrcDir, "packaging", "pack.cmd"))
-                    // Workaround to arg escaping adding backslashes for arguments to .cmd scripts.
-                    .Environment("__WorkaroundCliCoreHostBuildArch", arch)
-                    .Environment("__WorkaroundCliCoreHostBinDir", Dirs.Corehost)
-                    .Environment("__WorkaroundCliCoreHostPolicyVer", hostPolicyVer)
-                    .Environment("__WorkaroundCliCoreHostFxrVer", hostFxrVer)
-                    .Environment("__WorkaroundCliCoreHostVer", hostVer)
-                    .Environment("__WorkaroundCliCoreHostBuildMajor", buildMajor)
-                    .Environment("__WorkaroundCliCoreHostVersionTag", versionTag)
-                    .ForwardStdOut()
-                    .ForwardStdErr()
-                    .Execute()
-                    .EnsureSuccessful();
             }
             else
             {
@@ -166,18 +153,48 @@ namespace Microsoft.DotNet.Cli.Build
                 File.Copy(Path.Combine(cmakeOut, "cli", "dotnet"), Path.Combine(Dirs.Corehost, CoreHostBaseName), overwrite: true);
                 File.Copy(Path.Combine(cmakeOut, "cli", "dll", HostPolicyBaseName), Path.Combine(Dirs.Corehost, HostPolicyBaseName), overwrite: true);
                 File.Copy(Path.Combine(cmakeOut, "cli", "fxr", DotnetHostFxrBaseName), Path.Combine(Dirs.Corehost, DotnetHostFxrBaseName), overwrite: true);
-                
+            }
+            return c.Success();
+        }
+
+        [Target]
+        private static BuildTargetResult PackageCoreHost(BuildTargetContext c)
+        {
+            var buildVersion = c.BuildContext.Get<BuildVersion>("BuildVersion");
+            var versionTag = buildVersion.ReleaseSuffix;
+            var buildMajor = buildVersion.CommitCountString;
+            var arch = IsWinx86 ? "x86" : "x64";
+
+            string corehostSrcDir = Path.Combine(c.BuildContext.BuildDirectory, "src", "corehost");
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                Command.Create(Path.Combine(corehostSrcDir, "packaging", "pack.cmd"))
+                    // Workaround to arg escaping adding backslashes for arguments to .cmd scripts.
+                    .Environment("__WorkaroundCliCoreHostBuildArch", arch)
+                    .Environment("__WorkaroundCliCoreHostBinDir", Dirs.Corehost)
+                    .Environment("__WorkaroundCliCoreHostPolicyVer", HostPolicyVer)
+                    .Environment("__WorkaroundCliCoreHostFxrVer", HostFxrVer)
+                    .Environment("__WorkaroundCliCoreHostVer", HostVer)
+                    .Environment("__WorkaroundCliCoreHostBuildMajor", buildMajor)
+                    .Environment("__WorkaroundCliCoreHostVersionTag", versionTag)
+                    .ForwardStdOut()
+                    .ForwardStdErr()
+                    .Execute()
+                    .EnsureSuccessful();
+            }
+            else
+            {
                 Exec(Path.Combine(corehostSrcDir, "packaging", "pack.sh"),
                     "--arch",
                     "x64",
                     "--hostbindir",
                     Dirs.Corehost,
                     "--policyver",
-                    hostPolicyVer,
+                    HostPolicyVer,
                     "--fxrver",
-                    hostFxrVer,
+                    HostFxrVer,
                     "--hostver",
-                    hostVer,
+                    HostVer,
                     "--build",
                     buildMajor,
                     "--vertag",
@@ -194,7 +211,6 @@ namespace Microsoft.DotNet.Cli.Build
             {
                 throw new BuildFailureException("Not all corehost nupkgs were successfully created");
             }
-
             return c.Success();
         }
 
