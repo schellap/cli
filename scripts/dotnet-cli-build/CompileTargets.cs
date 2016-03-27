@@ -66,9 +66,9 @@ namespace Microsoft.DotNet.Cli.Build
             return c.Success();
         }
 
-        private static string HostVer = "1.0.0";
-        private static string HostPolicyVer = "1.0.0";
-        private static string HostFxrVer = "1.0.0";
+        private static string HostVer = "1.0.1";
+        private static string HostPolicyVer = "1.0.1";
+        private static string HostFxrVer = "1.0.1";
 
         [Target(nameof(PackageCoreHost))]
         public static BuildTargetResult CompileCoreHost(BuildTargetContext c)

@@ -98,10 +98,8 @@ namespace Microsoft.DotNet.Cli.Build
         {
             foreach (var file in Directory.GetFiles(Path.Combine(Dirs.Corehost, "*.nupkg")))
             {
-                var latestHostBlob = $"{Channel}/Binaries/Latest/{Path.GetFileName(file)}";
                 var hostBlob = $"{Channel}/Binaries/{CliNuGetVersion}/{Path.GetFileName(file)}";
                 AzurePublisherTool.PublishFile(hostBlob, file);
-                AzurePublisherTool.PublishFile(latestHostBlob, file);
             }
 
             return c.Success();

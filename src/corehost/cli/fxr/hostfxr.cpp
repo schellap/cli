@@ -95,8 +95,9 @@ bool hostpolicy_exists_in_svc(pal::string_t* resolved_dir)
     if (library_exists_in_dir(path, LIBHOST_NAME, nullptr))
     {
         resolved_dir->assign(path);
+        return true;
     }
-    return true;
+    return false;
 }
 
 SHARED_API int hostfxr_main(const int argc, const pal::char_t* argv[])
