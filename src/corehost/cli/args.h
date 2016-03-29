@@ -16,16 +16,55 @@ struct probe_config_t
     bool roll_forward;
     bool only_runtime_assets;
     bool only_serviceable_assets;
+    bool only_portable_assets;
+    deps_json_t* probe_deps_json;
 
-    probe_config_t(const pal::string_t& probe_dir, bool match_hash, bool roll_forward, bool only_serviceable_assets, bool only_runtime_assets)
+    probe_config_t(
+        const pal::string_t& probe_dir,
+        bool match_hash,
+        bool roll_forward,
+        bool only_serviceable_assets,
+        bool only_runtime_assets,
+        const deps_json_t* consult_deps_json)
         : probe_dir(probe_dir)
         , match_hash(match_hash)
         , roll_forward(roll_forward)
         , only_serviceable_assets(only_serviceable_assets)
         , only_runtime_assets(only_runtime_assets)
+        , probe_deps_json(probe_deps_json)
     {
         // Cannot roll forward and also match hash.
         assert(!roll_forward || !match_hash);
+    }
+
+    static probe_config_t svc_ni(const pal::string_t dir, bool roll_fwd)
+    {
+        return probe_config_t(dir, false, roll_fwd, true, true, nullptr);
+    }
+
+    static probe_config_t svc(const pal::string_t dir, bool roll_fwd)
+    {
+        return probe_config_t(dir, false, roll_fwd, true, false, nullptr);
+    }
+
+    static probe_config_t cache_ni(const pal::string_t dir)
+    {
+        return probe_config_t(dir, true, false, false, true, nullptr);
+    }
+    
+    static probe_config_t cache(const pal::string_t dir)
+    {
+        return probe_config_t(dir, true, false, false, false, nullptr);
+    }
+
+    static probe_config_t fx(const pal::string_t dir, const deps_json_t* deps)
+    {
+        return probe_config_t(dir, false, false, false, false, deps);
+    }
+
+    static probe_config_t additional(const pal::string_t dir, bool roll_fwd)
+    {
+        return probe_config_t(dir, false, roll_fwd, false, false, nullptr);
     }
 };
 

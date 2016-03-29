@@ -193,12 +193,12 @@ void deps_resolver_t::setup_probe_config(
         append_path(&ext_ni, get_arch());
         if (pal::directory_exists(ext_ni))
         {
-            // Servicing NGEN probe.
-            m_probes.push_back(probe_config_t(ext_ni, false, config.get_fx_roll_fwd(), true, true)); // no hash match, roll forward, only serviceable
+            // Servicing NI probe.
+            m_probes.push_back(probe_config_t::svc_ni(ext_ni, config.get_fx_roll_fwd()));
         }
 
         // Servicing normal probe.
-        m_probes.push_back(probe_config_t(args.dotnet_extensions, false, config.get_fx_roll_fwd(), true, false)); // no hash match, roll forward, only serviceable
+        m_probes.push_back(probe_config_t::svc(args.dotnet_extensions, config.get_fx_roll_fwd());
     }
 
     if (pal::directory_exists(args.dotnet_packages_cache))
@@ -207,9 +207,43 @@ void deps_resolver_t::setup_probe_config(
         append_path(&ni_packages_cache, get_arch());
         if (pal::directory_exists(ni_packages_cache))
         {
-            m_probes.push_back(probe_config_t(ni_packages_cache, true, false, false, true)); // hash match, no roll forward, non-serviceable also
+            // Packages cache NI probe
+            m_probes.push_back(probe_config_t::cache_ni(ni_packages_cache));
         }
-        m_probes.push_back(probe_config_t(args.dotnet_packages_cache, true, false, false, false)); // hash match, no roll forward, non-serviceable also
+
+        // Packages cache probe
+        m_probes.push_back(probe_config_t::cache(args.dotnet_packages_cache));
+    }
+
+    if (pal::directory_exists(m_fx_dir))
+    {
+        // FX probe
+        m_probes.push_back(probe_config_t::fx(m_fx_dir, &m_deps));
+    }
+
+    for (const auto& probe : m_additional_probes)
+    {
+        // Additional paths
+        assert(pal::directory_exists(probe));
+        m_probes.push_back(probe_config_t::additional(probe));
+    }
+}
+
+void deps_resolver_t::setup_additional_probes(const std::vector<pal::string_t>& probe_paths)
+{
+    m_additional_probes = probe_paths;
+
+    std::remove_if(m_additional_probes.begin(), m_additional_probes.end(), [](const pal::string_t& dir) {
+        return dir.empty() || !pal::directory_exists(dir);
+    });
+    if (m_additional_probes.empty())
+    {
+        pal::string_t probe_dir;
+        (void)pal::get_default_packages_directory(&probe_dir);
+        if (!probe_dir.empty() && pal::directory_exists(probe_dir))
+        {
+            m_additional_probes.push_back(probe_dir);
+        }
     }
 }
 
@@ -289,14 +323,6 @@ pal::string_t deps_resolver_t::resolve_coreclr_dir()
             return deps_dir;
         }
 
-        if (!m_additional_probe.empty() && deps->has_coreclr_entry())
-        {
-            const deps_entry_t& entry = deps->get_coreclr_entry();
-            if (entry.to_full_path(m_additional_probe, &candidate))
-            {
-                return get_directory(candidate);
-            }
-        }
         return pal::string_t();
     };
 
@@ -370,10 +396,6 @@ void deps_resolver_t::resolve_tpa_list(
         else if (dir_assemblies.count(entry.asset_name))
         {
             add_tpa_asset(entry.asset_name, dir_assemblies.find(entry.asset_name)->second, &items, output);
-        }
-        else if (!m_additional_probe.empty() && entry.to_full_path(m_additional_probe, &candidate))
-        {
-            add_tpa_asset(entry.asset_name, candidate, &items, output);
         }
     };
     

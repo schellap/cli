@@ -116,7 +116,7 @@ SHARED_API int hostfxr_main(const int argc, const pal::char_t* argv[])
     case split_fx:
         {
             trace::info(_X("Host operating in split mode; own dir=[%s]"), own_dir.c_str());
-            corehost_init_t init(_X(""), _X(""), own_dir, host_mode_t::split_fx, nullptr);
+            corehost_init_t init(_X(""), std::vector<pal::string_t>(), own_dir, host_mode_t::split_fx, nullptr);
             return execute_app(own_dir, &init, argc, argv);
         }
 
@@ -125,7 +125,7 @@ SHARED_API int hostfxr_main(const int argc, const pal::char_t* argv[])
             trace::info(_X("Host operating from standalone app dir %s"), own_dir.c_str());
 
             pal::string_t svc_dir;
-            corehost_init_t init(_X(""), _X(""), _X(""), host_mode_t::standalone, nullptr);
+            corehost_init_t init(_X(""), std::vector<pal::string_t>(), _X(""), host_mode_t::standalone, nullptr);
             return execute_app(
                 hostpolicy_exists_in_svc(&svc_dir) ? svc_dir : own_dir, &init, argc, argv);
         }

@@ -46,14 +46,7 @@ public:
             m_deps = std::unique_ptr<deps_json_t>(new deps_json_t(false, m_deps_file));
         }
 
-        // Packages probe. TODO: Remove the default probe dir support.
-        m_additional_probes = init->probe_paths();
-        if (m_additional_probe.empty() || !pal::directory_exists(m_additional_probe))
-        {
-            (void)pal::get_default_packages_directory(&m_additional_probe);
-        }
-        trace::info(_X("Package directory: %s"), m_additional_probe.empty() ? _X("not specified") : m_additional_probe.c_str());
-
+        setup_additional_probes(init->probe_paths());
         setup_probe_config(init, config, args);
     }
 
@@ -63,6 +56,8 @@ public:
         const corehost_init_t* init,
         const runtime_config_t& config,
         const arguments_t& args);
+
+    void setup_additional_probes(const std::vector<pal::string_t>& probe_paths);
 
     bool resolve_probe_paths(
       const pal::string_t& clr_dir,
@@ -151,7 +146,7 @@ private:
     bool m_deps_valid;
 
     // Fallback probe dir
-    pal::string_t m_additional_probe;
+    std::vector<pal::string_t> m_additional_probes;
 
     // Is the deps file portable app?
     bool m_portable;
