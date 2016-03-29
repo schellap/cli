@@ -354,6 +354,13 @@ void deps_resolver_t::resolve_tpa_list(
         {
             add_tpa_asset(entry.asset_name, candidate, &items, output);
         }
+        // Give preference to framework location over app, for the portable deps.
+        else if (is_portable && !entry.is_rid_specific && 
+            m_fx_assemblies.count(entry.asset_name) &&
+            m_fx_deps->has_package(entry.library_name, entry.library_version))
+        {
+            add_tpa_asset(entry.asset_name, m_fx_assemblies.find(entry.asset_name)->second, &items, output);
+        }
         // The rid asset should be picked up from relative subpath.
         else if (entry.is_rid_specific && deps->try_ni(entry).to_rel_path(m_app_dir, &candidate))
         {
@@ -455,7 +462,7 @@ void deps_resolver_t::resolve_probe_dirs(
     {
         std::for_each(entries.begin(), entries.end(), [&](const deps_entry_t& entry)
         {
-            if (entry.asset_type == asset_type && entry.to_rel_path(m_app_dir, &candidate))
+            if (entry.is_rid_specific && entry.asset_type == asset_type && entry.to_rel_path(m_app_dir, &candidate))
             {
                 add_unique_path(asset_type, action(candidate), &items, output);
             }
