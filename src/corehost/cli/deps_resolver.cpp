@@ -218,14 +218,14 @@ void deps_resolver_t::setup_probe_config(
     if (pal::directory_exists(m_fx_dir))
     {
         // FX probe
-        m_probes.push_back(probe_config_t::fx(m_fx_dir, &m_deps));
+        m_probes.push_back(probe_config_t::fx(m_fx_dir, m_deps.get()));
     }
 
     for (const auto& probe : m_additional_probes)
     {
         // Additional paths
         assert(pal::directory_exists(probe));
-        m_probes.push_back(probe_config_t::additional(probe));
+        m_probes.push_back(probe_config_t::additional(probe, config.get_fx_roll_fwd()));
     }
 }
 
@@ -236,11 +236,12 @@ void deps_resolver_t::setup_additional_probes(const std::vector<pal::string_t>& 
     std::remove_if(m_additional_probes.begin(), m_additional_probes.end(), [](const pal::string_t& dir) {
         return dir.empty() || !pal::directory_exists(dir);
     });
+
     if (m_additional_probes.empty())
     {
         pal::string_t probe_dir;
         (void)pal::get_default_packages_directory(&probe_dir);
-        if (!probe_dir.empty() && pal::directory_exists(probe_dir))
+        if (pal::directory_exists(probe_dir))
         {
             m_additional_probes.push_back(probe_dir);
         }
@@ -256,12 +257,12 @@ bool deps_resolver_t::probe_entry_in_configs(const deps_entry_t& entry, pal::str
 
         if (config.only_serviceable_assets && !entry.is_serviceable)
         {
-            trace::verbose(_X("Skipping... non serviceable"));
+            trace::verbose(_X("    Skipping... non serviceable"));
             continue;
         }
         if (config.only_runtime_assets && pal::strcasecmp(entry.asset_type.c_str(), _X("runtime")) != 0)
         {
-            trace::verbose(_X("Skipping... not runtime asset"));
+            trace::verbose(_X("    Skipping... not runtime asset"));
             continue;
         }
         pal::string_t probe_dir = config.probe_dir;
@@ -269,7 +270,7 @@ bool deps_resolver_t::probe_entry_in_configs(const deps_entry_t& entry, pal::str
         if (config.match_hash && entry.to_hash_matched_path(probe_dir, candidate))
         {
             assert(!config.roll_forward);
-            trace::verbose(_X("Matched hash for [%s]"), candidate->c_str());
+            trace::verbose(_X("    Matched hash for [%s]"), candidate->c_str());
             return true;
         }
         if (!config.roll_forward && entry.to_full_path(probe_dir, candidate))
