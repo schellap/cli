@@ -14,7 +14,7 @@ namespace Microsoft.DotNet.Cli.Build
 {
     public class CompileTargets
     {
-        public static readonly string CoreCLRVersion = "1.0.2-rc2-23928";
+        public static readonly string CoreCLRVersion = "1.0.2-rc2-23929";
         public static readonly string AppDepSdkVersion = "1.0.6-prerelease-00003";
         public static readonly bool IsWinx86 = CurrentPlatform.IsWindows && CurrentArchitecture.Isx86;
 
@@ -265,7 +265,6 @@ namespace Microsoft.DotNet.Cli.Build
 
             // Rename the .deps file
             var destinationDeps = Path.Combine(SharedFrameworkNameAndVersionRoot, $"{SharedFrameworkName}.deps.json");
-            File.Move(Path.Combine(SharedFrameworkNameAndVersionRoot, "framework.deps"), Path.Combine(SharedFrameworkNameAndVersionRoot, $"{SharedFrameworkName}.deps"));
             File.Move(Path.Combine(SharedFrameworkNameAndVersionRoot, "framework.deps.json"), destinationDeps);
 
             // Generate RID fallback graph
