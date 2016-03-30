@@ -91,7 +91,7 @@ private:
 
     // Resolve order for culture and native DLL lookup.
     void resolve_probe_dirs(
-        const pal::string_t& asset_type,
+        deps_entry_t::asset_types asset_type,
         const pal::string_t& clr_dir,
         pal::string_t* output);
 
@@ -140,6 +140,7 @@ private:
     // Deps files for the app
     std::unique_ptr<deps_json_t>  m_deps;
 
+    // Various probe configurations.
     std::vector<probe_config_t> m_probes;
 
     // Is the deps file valid

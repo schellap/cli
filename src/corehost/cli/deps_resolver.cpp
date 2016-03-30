@@ -6,6 +6,7 @@
 #include <cassert>
 
 #include "trace.h"
+#include "deps_entry.h"
 #include "deps_format.h"
 #include "deps_resolver.h"
 #include "utils.h"
@@ -44,7 +45,7 @@ void add_tpa_asset(
 // the "output" string.
 //
 void add_unique_path(
-    const pal::string_t& type,
+    deps_entry_t::asset_types asset_type,
     const pal::string_t& path,
     std::set<pal::string_t>* existing,
     pal::string_t* output)
@@ -58,7 +59,7 @@ void add_unique_path(
         return;
     }
 
-    trace::verbose(_X("Adding to %s path: %s"), type.c_str(), real.c_str());
+    trace::verbose(_X("Adding to %s path: %s"), deps_entry_t::s_known_asset_types[asset_type], real.c_str());
 
     output->append(real);
 
@@ -198,7 +199,7 @@ void deps_resolver_t::setup_probe_config(
         }
 
         // Servicing normal probe.
-        m_probes.push_back(probe_config_t::svc(args.dotnet_extensions, config.get_fx_roll_fwd());
+        m_probes.push_back(probe_config_t::svc(args.dotnet_extensions, config.get_fx_roll_fwd()));
     }
 
     if (pal::directory_exists(args.dotnet_packages_cache))
@@ -226,6 +227,15 @@ void deps_resolver_t::setup_probe_config(
         // Additional paths
         assert(pal::directory_exists(probe));
         m_probes.push_back(probe_config_t::additional(probe, config.get_fx_roll_fwd()));
+    }
+
+    if (trace::is_enabled())
+    {
+        trace::verbose(_X("-- Listing probe configurations..."));
+        for (const auto& pc : m_probes)
+        {
+            pc.print();
+        }
     }
 }
 
@@ -257,32 +267,57 @@ bool deps_resolver_t::probe_entry_in_configs(const deps_entry_t& entry, pal::str
 
         if (config.only_serviceable_assets && !entry.is_serviceable)
         {
-            trace::verbose(_X("    Skipping... non serviceable"));
+            trace::verbose(_X("    Skipping... not serviceable asset"));
             continue;
         }
-        if (config.only_runtime_assets && pal::strcasecmp(entry.asset_type.c_str(), _X("runtime")) != 0)
+        if (config.only_runtime_assets && entry.asset_type != deps_entry_t::asset_types::runtime)
         {
             trace::verbose(_X("    Skipping... not runtime asset"));
             continue;
         }
+        if (config.only_non_rid_assets && entry.is_rid_specific)
+        {
+            trace::verbose(_X("    Skipping... not non-rid (portable) asset"));
+            continue;
+        }
         pal::string_t probe_dir = config.probe_dir;
         assert(pal::directory_exists(probe_dir));
-        if (config.match_hash && entry.to_hash_matched_path(probe_dir, candidate))
+        if (config.match_hash)
         {
-            assert(!config.roll_forward);
-            trace::verbose(_X("    Matched hash for [%s]"), candidate->c_str());
-            return true;
+            if (entry.to_hash_matched_path(probe_dir, candidate))
+            {
+                assert(!config.roll_forward);
+                trace::verbose(_X("    Matched hash for [%s]"), candidate->c_str());
+                return true;
+            }
+            trace::verbose(_X("    Skipping... match hash failed"));
         }
-        if (!config.roll_forward && entry.to_full_path(probe_dir, candidate))
+        else if (config.probe_deps_json)
         {
-            trace::verbose(_X("Specified no roll forward; matched [%s]"), candidate->c_str());
-            return true;
+            if (config.probe_deps_json->has_entry(entry) && entry.to_dir_path(probe_dir, candidate))
+            {
+                trace::verbose(_X("    Probed deps json and matched [%s]"), candidate->c_str());
+                return true;
+            }
+            trace::verbose(_X("    Skipping... probe in deps json failed"));
         }
-
-        if (config.roll_forward && try_roll_forward(entry, probe_dir, candidate))
+        else if (!config.roll_forward)
         {
-            trace::verbose(_X("Specified roll forward; matched [%s]"), candidate->c_str());
-            return true;
+            if (entry.to_full_path(probe_dir, candidate))
+            {
+                trace::verbose(_X("    Specified no roll forward; matched [%s]"), candidate->c_str());
+                return true;
+            }
+            trace::verbose(_X("    Skipping... not found in probe dir"));
+        }
+        else if (config.roll_forward)
+        {
+            if (try_roll_forward(entry, probe_dir, candidate))
+            {
+                trace::verbose(_X("    Specified roll forward; matched [%s]"), candidate->c_str());
+                return true;
+            }
+            trace::verbose(_X("    Skipping... coult not roll forward and match in probe dir"));
         }
 
         // continue to try next probe config
@@ -381,19 +416,12 @@ void deps_resolver_t::resolve_tpa_list(
         {
             add_tpa_asset(entry.asset_name, candidate, &items, output);
         }
-        // Give preference to framework location over app, for the portable deps.
-        else if (is_portable && !entry.is_rid_specific && 
-            m_fx_assemblies.count(entry.asset_name) &&
-            m_fx_deps->has_package(entry.library_name, entry.library_version))
-        {
-            add_tpa_asset(entry.asset_name, m_fx_assemblies.find(entry.asset_name)->second, &items, output);
-        }
-        // The rid asset should be picked up from relative subpath.
+        // The rid asset should be picked up from app relative subpath.
         else if (entry.is_rid_specific && deps->try_ni(entry).to_rel_path(m_app_dir, &candidate))
         {
             add_tpa_asset(entry.asset_name, candidate, &items, output);
         }
-        // The rid-less asset in the app base.
+        // The rid-less asset should be picked up from the app base.
         else if (dir_assemblies.count(entry.asset_name))
         {
             add_tpa_asset(entry.asset_name, dir_assemblies.find(entry.asset_name)->second, &items, output);
@@ -445,11 +473,12 @@ void deps_resolver_t::resolve_tpa_list(
 //     output - Pointer to a string that will hold the resolved lookup dirs
 //
 void deps_resolver_t::resolve_probe_dirs(
-        const pal::string_t& asset_type,
+        deps_entry_t::asset_types asset_type,
         const pal::string_t& clr_dir,
         pal::string_t* output)
 {
-    assert(asset_type == _X("resources") || asset_type == _X("native"));
+    bool is_resources = asset_type == deps_entry_t::asset_types::resources;
+    assert(is_resources || asset_type == deps_entry_t::asset_types::native);
 
     // For resources assemblies, we need to provide the base directory of the resources path.
     // For example: .../Foo/en-US/Bar.dll, then, the resolved path is .../Foo
@@ -460,13 +489,12 @@ void deps_resolver_t::resolve_probe_dirs(
     std::function<pal::string_t(const pal::string_t&)> native = [] (const pal::string_t& str) {
         return get_directory(str);
     };
-    std::function<pal::string_t(const pal::string_t&)>& action = (asset_type == _X("resources")) ? resources : native;
-    deps_entry_t::asset_types entry_type = (asset_type == _X("resources")) ? deps_entry_t::asset_types::resources : deps_entry_t::asset_types::native;
+    std::function<pal::string_t(const pal::string_t&)>& action = is_resources ? resources : native;
     std::set<pal::string_t> items;
 
     std::vector<deps_entry_t> empty(0);
-    const auto& entries = m_deps->get_entries(entry_type);
-    const auto& fx_entries = m_portable ? m_fx_deps->get_entries(entry_type) : empty;
+    const auto& entries = m_deps->get_entries(asset_type);
+    const auto& fx_entries = m_portable ? m_fx_deps->get_entries(asset_type) : empty;
 
     pal::string_t candidate;
 
@@ -480,7 +508,7 @@ void deps_resolver_t::resolve_probe_dirs(
     std::for_each(entries.begin(), entries.end(), add_package_cache_entry);
     std::for_each(fx_entries.begin(), fx_entries.end(), add_package_cache_entry);
 
-    // For portable path, the app relative directory must be used.
+    // For portable rid specific assets, the app relative directory must be used.
     if (m_portable)
     {
         std::for_each(entries.begin(), entries.end(), [&](const deps_entry_t& entry)
@@ -521,7 +549,7 @@ void deps_resolver_t::resolve_probe_dirs(
 bool deps_resolver_t::resolve_probe_paths(const pal::string_t& clr_dir, probe_paths_t* probe_paths)
 {
     resolve_tpa_list(clr_dir, &probe_paths->tpa);
-    resolve_probe_dirs(_X("native"), clr_dir, &probe_paths->native);
-    resolve_probe_dirs(_X("resources"), clr_dir, &probe_paths->resources);
+    resolve_probe_dirs(deps_entry_t::asset_types::native, clr_dir, &probe_paths->native);
+    resolve_probe_dirs(deps_entry_t::asset_types::resources, clr_dir, &probe_paths->resources);
     return true;
 }

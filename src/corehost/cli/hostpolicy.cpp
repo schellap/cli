@@ -213,12 +213,15 @@ SHARED_API int corehost_main(const int argc, const pal::char_t* argv[])
 
         trace::info(_X("Host mode: %d"), g_init->host_mode());
         trace::info(_X("Deps file: %s"), g_init->deps_file().c_str());
-        trace::info(_X("Probe dir: %s"), g_init->probe_dir().c_str());
+        for (const auto& probe : g_init->probe_paths())
+        {
+            trace::info(_X("Additional probe dir: %s"), probe.c_str());
+        }
     }
 
     // Take care of arguments
     arguments_t args;
-    if (!parse_arguments(g_init->deps_file(), g_init->probe_dir(), g_init->host_mode(), argc, argv, &args))
+    if (!parse_arguments(g_init->deps_file(), g_init->probe_paths(), g_init->host_mode(), argc, argv, &args))
     {
         return StatusCode::LibHostInvalidArgs;
     }
