@@ -5,7 +5,6 @@
 #include "deps_format.h"
 #include "utils.h"
 #include "trace.h"
-#include <unordered_set>
 #include <tuple>
 #include <array>
 #include <iterator>
@@ -29,7 +28,7 @@ const deps_entry_t& deps_json_t::try_ni(const deps_entry_t& entry) const
 void deps_json_t::reconcile_libraries_with_targets(
     const json_value& json,
     const std::function<bool(const pal::string_t&)>& library_exists_fn,
-    const std::function<const std::unordered_set<pal::string_t>&(const pal::string_t&, int, bool*)>& get_rel_paths_by_asset_type_fn)
+    const std::function<const std::vector<pal::string_t>&(const pal::string_t&, int, bool*)>& get_rel_paths_by_asset_type_fn)
 {
     const auto& libraries = json.at(_X("libraries")).as_object();
     for (const auto& library : libraries)

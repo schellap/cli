@@ -57,7 +57,7 @@ public:
         const runtime_config_t& config,
         const arguments_t& args);
 
-    void setup_additional_probes(const std::vector<pal::string_t>& probe_paths);
+    void setup_additional_probes(const std::unordered_set<pal::string_t>& probe_paths);
 
     bool resolve_probe_paths(
       const pal::string_t& clr_dir,

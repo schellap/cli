@@ -92,7 +92,7 @@ bool parse_arguments(const pal::string_t& deps_path, const std::vector<pal::stri
     pal::string_t deps_file = opts.count(opts_deps_file) ? opts[opts_deps_file] : deps_path;
     if (opts.count(opts_probe_path))
     {
-        args.probe_paths.push_back(opts[opts_probe_path]);
+        args.probe_paths.insert(opts[opts_probe_path]);
     }
 
     if (!deps_file.empty())
@@ -103,7 +103,7 @@ bool parse_arguments(const pal::string_t& deps_path, const std::vector<pal::stri
 
     for (const auto& probe : probe_paths)
     {
-        args.probe_paths.push_back(probe);
+        args.probe_paths.insert(probe);
     }
     
     if (args.deps_path.empty())

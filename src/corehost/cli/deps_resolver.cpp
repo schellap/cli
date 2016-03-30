@@ -239,13 +239,22 @@ void deps_resolver_t::setup_probe_config(
     }
 }
 
-void deps_resolver_t::setup_additional_probes(const std::vector<pal::string_t>& probe_paths)
+void deps_resolver_t::setup_additional_probes(const std::unordered_set<pal::string_t>& probe_paths)
 {
-    m_additional_probes = probe_paths;
+    m_additional_probes.assign(probe_paths.begin(), probe_paths.end());
 
-    std::remove_if(m_additional_probes.begin(), m_additional_probes.end(), [](const pal::string_t& dir) {
-        return dir.empty() || !pal::directory_exists(dir);
-    });
+    for (auto iter = m_additional_probes.begin(); iter != m_additional_probes.end(); )
+    {
+        if (pal::directory_exists(*iter))
+        {
+            ++iter;
+        }
+        else
+        {
+            iter = m_additional_probes.erase(iter);
+        }
+    }
+
     /*
 
     if (m_additional_probes.empty())

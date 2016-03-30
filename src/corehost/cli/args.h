@@ -86,7 +86,7 @@ struct arguments_t
     pal::string_t app_dir;
     pal::string_t deps_path;
     pal::string_t dotnet_extensions;
-    std::vector<pal::string_t> probe_paths;
+    std::unordered_set<pal::string_t> probe_paths;
     pal::string_t dotnet_packages_cache;
     pal::string_t managed_application;
 
