@@ -297,7 +297,9 @@ bool deps_resolver_t::probe_entry_in_configs(const deps_entry_t& entry, pal::str
         }
         else if (config.probe_deps_json)
         {
-            if (config.probe_deps_json->has_entry(entry) && entry.to_dir_path(probe_dir, candidate))
+            // If the deps json has it then someone has already done rid selection and put the right stuff in the dir.
+            // So checking just package name and version would suffice. No need to check further for the exact asset relative path.
+            if (config.probe_deps_json->has_package(entry.library_name, entry.library_version) && entry.to_dir_path(probe_dir, candidate))
             {
                 trace::verbose(_X("    Probed deps json and matched [%s]"), candidate->c_str());
                 return true;

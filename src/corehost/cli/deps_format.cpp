@@ -191,7 +191,7 @@ bool deps_json_t::process_runtime_targets(const json_value& json, const pal::str
                 if (pal::strcasecmp(type.c_str(), deps_entry_t::s_known_asset_types[i]) == 0)
                 {
                     const auto& rid = file.second.at(_X("rid")).as_string();
-                    assets.libs[package.first].rid_assets[rid].by_type[i].set.insert(file.first);
+                    assets.libs[package.first].rid_assets[rid].by_type[i].vec.push_back(file.first);
                 }
             }
         }
@@ -220,7 +220,7 @@ bool deps_json_t::process_targets(const json_value& json, const pal::string_t& t
                 for (const auto& file : iter->second.as_object())
                 {
                     trace::info(_X("Adding %s asset %s from %s"), deps_entry_t::s_known_asset_types[i], file.first.c_str(), package.first.c_str());
-                    assets.libs[package.first].by_type[i].set.insert(file.first);
+                    assets.libs[package.first].by_type[i].vec.push_back(file.first);
                 }
             }
         }
@@ -244,15 +244,15 @@ bool deps_json_t::load_portable(const json_value& json, const pal::string_t& tar
         return m_rid_assets.libs.count(package) || m_assets.libs.count(package);
     };
 
-    const std::unordered_set<pal::string_t> empty;
-    auto get_relpaths = [&](const pal::string_t& package, int type_index, bool* rid_specific) -> const std::unordered_set<pal::string_t>& {
+    const std::vector<pal::string_t> empty;
+    auto get_relpaths = [&](const pal::string_t& package, int type_index, bool* rid_specific) -> const std::vector<pal::string_t>& {
 
         *rid_specific = false;
 
         // Is there any rid specific assets for this type ("native" or "runtime" or "resources")
         if (m_rid_assets.libs.count(package) && !m_rid_assets.libs[package].rid_assets.empty())
         {
-            const auto& assets_by_type = m_rid_assets.libs[package].rid_assets.begin()->second.by_type[type_index].set;
+            const auto& assets_by_type = m_rid_assets.libs[package].rid_assets.begin()->second.by_type[type_index].vec;
             if (!assets_by_type.empty())
             {
                 *rid_specific = true;
@@ -264,7 +264,7 @@ bool deps_json_t::load_portable(const json_value& json, const pal::string_t& tar
 
         if (m_assets.libs.count(package))
         {
-            return m_assets.libs[package].by_type[type_index].set;
+            return m_assets.libs[package].by_type[type_index].vec;
         }
 
         return empty;
@@ -286,9 +286,9 @@ bool deps_json_t::load_standalone(const json_value& json, const pal::string_t& t
         return m_assets.libs.count(package);
     };
 
-    auto get_relpaths = [&](const pal::string_t& package, int type_index, bool* rid_specific) -> const std::unordered_set<pal::string_t>& {
+    auto get_relpaths = [&](const pal::string_t& package, int type_index, bool* rid_specific) -> const std::vector<pal::string_t>& {
         *rid_specific = false;
-        return m_assets.libs[package].by_type[type_index].set;
+        return m_assets.libs[package].by_type[type_index].vec;
     };
 
     reconcile_libraries_with_targets(json, package_exists, get_relpaths);
@@ -324,38 +324,22 @@ bool deps_json_t::load_standalone(const json_value& json, const pal::string_t& t
     return true;
 }
 
-bool deps_json_t::has_entry(const deps_entry_t& entry) const
+bool deps_json_t::has_package(const pal::string_t& name, const pal::string_t& ver) const
 {
-    pal::string_t pv = entry.library_name;
+    pal::string_t pv = name;
     pv.push_back(_X('/'));
-    pv.append(entry.library_version.c_str());
-    if (entry.is_rid_specific)
+    pv.append(ver);
+    
+    auto iter = m_rid_assets.libs.find(pv);
+    if (iter != m_rid_assets.libs.end())
     {
-        auto iter = m_rid_assets.libs.find(pv);
-        if (iter != m_rid_assets.libs.end())
+        if (!iter->second.rid_assets.empty())
         {
-            if (iter->second.rid_assets.empty())
-            {
-                return false;
-            }
-            if (iter->second.rid_assets.begin()->second.by_type[entry.asset_type].set.count(entry.relative_path))
-            {
-                return true;
-            }
+            return true;
         }
     }
-    else
-    {
-        auto iter = m_assets.libs.find(pv);
-        if (iter != m_assets.libs.end())
-        {
-            if (iter->second.by_type[entry.asset_type].set.count(entry.relative_path));
-            {
-                return true;
-            }
-        }
-    }
-    return false;
+    
+    return m_assets.libs.count(pv);
 }
 
 // -----------------------------------------------------------------------------

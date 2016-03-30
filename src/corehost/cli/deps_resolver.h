@@ -46,7 +46,7 @@ public:
             m_deps = std::unique_ptr<deps_json_t>(new deps_json_t(false, m_deps_file));
         }
 
-        setup_additional_probes(init->probe_paths());
+        setup_additional_probes(args.probe_paths);
         setup_probe_config(init, config, args);
     }
 

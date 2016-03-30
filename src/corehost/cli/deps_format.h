@@ -15,8 +15,8 @@
 class deps_json_t
 {
     typedef web::json::value json_value;
-    struct set_t { std::unordered_set<pal::string_t> set; };
-    struct assets_t { std::array<set_t, deps_entry_t::asset_types::count> by_type; };
+    struct vec_t { std::vector<pal::string_t> vec; };
+    struct assets_t { std::array<vec_t, deps_entry_t::asset_types::count> by_type; };
     struct deps_assets_t { std::unordered_map<pal::string_t, assets_t> libs; };
     struct rid_assets_t { std::unordered_map<pal::string_t, assets_t> rid_assets; };
     struct rid_specific_assets_t { std::unordered_map<pal::string_t, rid_assets_t> libs; };
@@ -50,7 +50,7 @@ public:
         return m_deps_entries[type];
     }
 
-    bool has_entry(const deps_entry_t& entry) const;
+    bool has_package(const pal::string_t& name, const pal::string_t& ver) const;
 
     bool has_coreclr_entry()
     {
