@@ -219,7 +219,7 @@ void deps_resolver_t::setup_probe_config(
     if (pal::directory_exists(m_fx_dir))
     {
         // FX probe
-        m_probes.push_back(probe_config_t::fx(m_fx_dir, m_deps.get()));
+        m_probes.push_back(probe_config_t::fx(m_fx_dir, m_fx_deps.get()));
     }
 
     for (const auto& probe : m_additional_probes)
@@ -246,6 +246,7 @@ void deps_resolver_t::setup_additional_probes(const std::vector<pal::string_t>& 
     std::remove_if(m_additional_probes.begin(), m_additional_probes.end(), [](const pal::string_t& dir) {
         return dir.empty() || !pal::directory_exists(dir);
     });
+    /*
 
     if (m_additional_probes.empty())
     {
@@ -256,6 +257,8 @@ void deps_resolver_t::setup_additional_probes(const std::vector<pal::string_t>& 
             m_additional_probes.push_back(probe_dir);
         }
     }
+
+    */
 }
 
 bool deps_resolver_t::probe_entry_in_configs(const deps_entry_t& entry, pal::string_t* candidate)
