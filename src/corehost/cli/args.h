@@ -23,7 +23,7 @@ struct probe_config_t
 
     void print() const
     {
-        trace::verbose(_X("probe_config_t: probe=[%s] match-hash=[%s] roll-forward=[%s] deps-json=[%p]"),
+        trace::verbose(_X("probe_config_t: probe=[%s] match-hash=[%d] roll-forward=[%d] deps-json=[%p]"),
             probe_dir.c_str(), match_hash, roll_forward, probe_deps_json);
     }
 

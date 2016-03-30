@@ -263,7 +263,7 @@ bool deps_resolver_t::probe_entry_in_configs(const deps_entry_t& entry, pal::str
     candidate->clear();
     for (const auto& config : m_probes)
     {
-        trace::verbose(_X("Considering entry [%s/%s/%s] and probe dir [%s]"), entry.library_name.c_str(), entry.library_hash.c_str(), entry.relative_path.c_str(), config.probe_dir.c_str());
+        trace::verbose(_X("Considering entry [%s/%s/%s] and probe dir [%s]"), entry.library_name.c_str(), entry.library_version.c_str(), entry.relative_path.c_str(), config.probe_dir.c_str());
 
         if (config.only_serviceable_assets && !entry.is_serviceable)
         {
