@@ -76,17 +76,22 @@ int execute_app(
 
 bool hostpolicy_exists_in_svc(pal::string_t* resolved_dir)
 {
-#ifdef COREHOST_PACKAGE_SERVICING
     pal::string_t svc_dir;
     if (!pal::getenv(_X("DOTNET_EXTENSIONS"), &svc_dir))
     {
         pal::get_default_extensions_directory(&svc_dir);
     }
 
-    pal::string_t path = svc_dir;
-    append_path(&path, _STRINGIFY(COREHOST_PACKAGE_NAME));
+    pal::string_t rel_dir = _STRINGIFY(HOST_POLICY_PKG_REL_DIR);
+    if (DIR_SEPARATOR != '/')
+    {
+        replace_char(&rel_dir, '/', DIR_SEPARATOR);
+    }
 
-    pal::string_t version = _STRINGIFY(COREHOST_PACKAGE_VERSION);
+    pal::string_t path = svc_dir;
+    append_path(&path, _STRINGIFY(HOST_POLICY_PKG_NAME));
+
+    pal::string_t version = _STRINGIFY(HOST_POLICY_PKG_VER);
 
     fx_ver_t lib_ver(-1, -1, -1);
     if (!fx_ver_t::parse(version, &lib_ver, false))
@@ -97,13 +102,19 @@ bool hostpolicy_exists_in_svc(pal::string_t* resolved_dir)
     pal::string_t max_ver;
     try_patch_roll_forward_in_dir(path, lib_ver, &max_ver);
     
-    append_path(&path, _STRINGIFY(COREHOST_PACKAGE_COREHOST_RELATIVE_DIR));
-    if (library_exists_in_dir(path, LIBHOSTPOLICY_NAME))
+    append_path(&path, _STRINGIFY(HOST_POLICY_RELATIVE_PATH));
+    if (!pal::realpath(&path))
+    {
+        trace::verbose(_X("Servicing root ::realpath(%s) doesn't exist"), path.c_str());
+        return false;
+    }
+    if (library_exists_in_dir(path, LIBHOSTPOLICY_NAME, nullptr))
     {
         resolved_dir->assign(path);
+        trace::verbose(_X("[%s] exists in servicing [%s]"), LIBHOSTPOLICY_NAME, path.c_str());
         return true;
     }
-#endif
+    trace::verbose(_X("[%s] doesn't exist in servicing [%s]"), LIBHOSTPOLICY_NAME, path.c_str());
     return false;
 }
 
