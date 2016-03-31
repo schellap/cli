@@ -255,8 +255,6 @@ void deps_resolver_t::setup_additional_probes(const std::unordered_set<pal::stri
         }
     }
 
-    /*
-
     if (m_additional_probes.empty())
     {
         pal::string_t probe_dir;
@@ -266,8 +264,6 @@ void deps_resolver_t::setup_additional_probes(const std::unordered_set<pal::stri
             m_additional_probes.push_back(probe_dir);
         }
     }
-
-    */
 }
 
 bool deps_resolver_t::probe_entry_in_configs(const deps_entry_t& entry, pal::string_t* candidate)
