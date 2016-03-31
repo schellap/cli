@@ -19,7 +19,6 @@ struct probe_config_t
 
     bool only_runtime_assets;
     bool only_serviceable_assets;
-    bool only_non_rid_assets;
 
     void print() const
     {

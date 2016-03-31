@@ -6,6 +6,7 @@
 #include "pal.h"
 #include "utils.h"
 #include "libhost.h"
+#include "fx_ver.h"
 #include "fx_muxer.h"
 #include "error_codes.h"
 
@@ -75,26 +76,35 @@ int execute_app(
 
 bool hostpolicy_exists_in_svc(pal::string_t* resolved_dir)
 {
-    // TODO: FIX ME for auto rollforward of hostpolicy
 #ifdef COREHOST_PACKAGE_SERVICING
     pal::string_t svc_dir;
     if (!pal::getenv(_X("DOTNET_EXTENSIONS"), &svc_dir))
     {
-        return false;
+        pal::get_default_extensions_directory(&svc_dir);
     }
 
     pal::string_t path = svc_dir;
-    append_path(&path, COREHOST_PACKAGE_NAME);
-    append_path(&path, COREHOST_PACKAGE_VERSION);
-    append_path(&path, COREHOST_PACKAGE_COREHOST_RELATIVE_DIR);
+    append_path(&path, _STRINGIFY(COREHOST_PACKAGE_NAME));
+
+    pal::string_t version = _STRINGIFY(COREHOST_PACKAGE_VERSION);
+
+    fx_ver_t lib_ver(-1, -1, -1);
+    if (!fx_ver_t::parse(version, &lib_ver, false))
+    {
+        return false;
+    }
+
+    pal::string_t max_ver;
+    try_patch_roll_forward_in_dir(path, lib_ver, &max_ver);
+    
+    append_path(&path, _STRINGIFY(COREHOST_PACKAGE_COREHOST_RELATIVE_DIR));
     if (library_exists_in_dir(path, LIBHOSTPOLICY_NAME))
     {
         resolved_dir->assign(path);
+        return true;
     }
-    return true;
-#else
-    return false;
 #endif
+    return false;
 }
 
 SHARED_API int hostfxr_main(const int argc, const pal::char_t* argv[])

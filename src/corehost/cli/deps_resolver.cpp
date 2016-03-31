@@ -129,6 +129,13 @@ bool deps_resolver_t::try_roll_forward(const deps_entry_t& entry,
 
     const pal::string_t& lib_ver = entry.library_version;
 
+    fx_ver_t max_ver(-1, -1, -1);
+    if (!fx_ver_t::parse(lib_ver, &max_ver, false))
+    {
+        trace::verbose(_X("No roll forward as specified version [%s] could not be parsed"), lib_ver.c_str());
+        return false;
+    }
+
     // Extract glob string of the form: 1.0.* from the version 1.0.0-prerelease-00001.
     size_t pat_start = lib_ver.find(_X('.'), lib_ver.find(_X('.')) + 1);
     pal::string_t maj_min_star = lib_ver.substr(0, pat_start + 1) + _X('*');
@@ -147,40 +154,13 @@ bool deps_resolver_t::try_roll_forward(const deps_entry_t& entry,
     }
     else
     {
-        fx_ver_t max_ver(-1, -1, -1);
-        if (!fx_ver_t::parse(lib_ver, &max_ver, false))
-        {
-            trace::verbose(_X("No roll forward as specified version [%s] could not be parsed"), lib_ver.c_str());
-            return false;
-        }
-
-        trace::verbose(_X("Reading roll forward candidates in dir [%s] for version [%s]"), path.c_str(), lib_ver.c_str());
-        std::vector<pal::string_t> list;
-        pal::readdir(path, maj_min_star, &list);
-
-        fx_ver_t ver(-1, -1, -1);
-        for (const auto& str : list)
-        {
-            trace::verbose(_X("Considering roll forward candidate version [%s]"), str.c_str());
-            if (fx_ver_t::parse(str, &ver, false))
-            {
-                max_ver = std::max(ver, max_ver);
-            }
-        }
-        max_str = max_ver.as_str();
+        try_patch_roll_forward_in_dir(path, lib_ver, &max_str);
         m_roll_forward_cache[cache_key] = max_str;
     }
-    trace::verbose(_X("Max roll forward version [%s]"), max_str.c_str());
 
     append_path(&path, max_str.c_str());
-    if (entry.to_rel_path(path, candidate))
-    {
-        trace::verbose(_X("Successfully rolled forward [%s/%s/%s] -> [%s]"), entry.library_name.c_str(), entry.library_version.c_str(), entry.relative_path.c_str(), lib_ver.c_str(), candidate->c_str());
-        return true;
-    }
 
-    trace::verbose(_X("Could not roll forward [%s/%s/%s]"), entry.library_name.c_str(), entry.library_version.c_str(), entry.relative_path.c_str());
-    return entry.to_full_path(probe_dir, candidate);
+    return entry.to_rel_path(path, candidate);
 }
 
 void deps_resolver_t::setup_probe_config(
@@ -226,7 +206,8 @@ void deps_resolver_t::setup_probe_config(
     {
         // Additional paths
         assert(pal::directory_exists(probe));
-        m_probes.push_back(probe_config_t::additional(probe, config.get_fx_roll_fwd()));
+        // FIXME: When removing additional probes add back config get fx roll fwd.
+        m_probes.push_back(probe_config_t::additional(probe,  false /* config.get_fx_roll_fwd() */));
     }
 
     if (trace::is_enabled())
@@ -254,7 +235,7 @@ void deps_resolver_t::setup_additional_probes(const std::unordered_set<pal::stri
             iter = m_additional_probes.erase(iter);
         }
     }
-
+    /*
     if (m_additional_probes.empty())
     {
         pal::string_t probe_dir;
@@ -264,6 +245,7 @@ void deps_resolver_t::setup_additional_probes(const std::unordered_set<pal::stri
             m_additional_probes.push_back(probe_dir);
         }
     }
+    */
 }
 
 bool deps_resolver_t::probe_entry_in_configs(const deps_entry_t& entry, pal::string_t* candidate)
@@ -271,7 +253,7 @@ bool deps_resolver_t::probe_entry_in_configs(const deps_entry_t& entry, pal::str
     candidate->clear();
     for (const auto& config : m_probes)
     {
-        trace::verbose(_X("Considering entry [%s/%s/%s] and probe dir [%s]"), entry.library_name.c_str(), entry.library_version.c_str(), entry.relative_path.c_str(), config.probe_dir.c_str());
+        trace::verbose(_X("  Considering entry [%s/%s/%s] and probe dir [%s]"), entry.library_name.c_str(), entry.library_version.c_str(), entry.relative_path.c_str(), config.probe_dir.c_str());
 
         if (config.only_serviceable_assets && !entry.is_serviceable)
         {
@@ -281,11 +263,6 @@ bool deps_resolver_t::probe_entry_in_configs(const deps_entry_t& entry, pal::str
         if (config.only_runtime_assets && entry.asset_type != deps_entry_t::asset_types::runtime)
         {
             trace::verbose(_X("    Skipping... not runtime asset"));
-            continue;
-        }
-        if (config.only_non_rid_assets && entry.is_rid_specific)
-        {
-            trace::verbose(_X("    Skipping... not non-rid (portable) asset"));
             continue;
         }
         pal::string_t probe_dir = config.probe_dir;
@@ -327,7 +304,7 @@ bool deps_resolver_t::probe_entry_in_configs(const deps_entry_t& entry, pal::str
                 trace::verbose(_X("    Specified roll forward; matched [%s]"), candidate->c_str());
                 return true;
             }
-            trace::verbose(_X("    Skipping... coult not roll forward and match in probe dir"));
+            trace::verbose(_X("    Skipping... could not roll forward and match in probe dir"));
         }
 
         // continue to try next probe config
