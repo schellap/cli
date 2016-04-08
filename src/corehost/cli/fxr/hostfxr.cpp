@@ -82,88 +82,11 @@ int execute_app(
     return code;
 }
 
-bool hostpolicy_exists_in_svc(pal::string_t* resolved_dir)
-{
-    pal::string_t svc_dir;
-    pal::get_default_extensions_directory(&svc_dir);
-
-    pal::string_t version = _STRINGIFY(HOST_POLICY_PKG_VER);
-
-    fx_ver_t lib_ver(-1, -1, -1);
-    if (!fx_ver_t::parse(version, &lib_ver, false))
-    {
-        return false;
-    }
-
-    pal::string_t rel_dir = _STRINGIFY(HOST_POLICY_PKG_REL_DIR);
-    if (DIR_SEPARATOR != '/')
-    {
-        replace_char(&rel_dir, '/', DIR_SEPARATOR);
-    }
-    
-    pal::string_t path = svc_dir;
-    append_path(&path, _STRINGIFY(HOST_POLICY_PKG_NAME));
-
-    pal::string_t max_ver;
-    if (lib_ver.is_prerelease())
-    {
-        try_prerelease_roll_forward_in_dir(path, lib_ver, &max_ver);
-    }
-    else
-    {
-        try_patch_roll_forward_in_dir(path, lib_ver, &max_ver);
-    }
-    
-    
-    append_path(&path, max_ver.c_str());
-    append_path(&path, rel_dir.c_str());
-
-    if (library_exists_in_dir(path, LIBHOSTPOLICY_NAME, nullptr))
-    {
-        resolved_dir->assign(path);
-        trace::verbose(_X("[%s] exists in servicing [%s]"), LIBHOSTPOLICY_NAME, path.c_str());
-        return true;
-    }
-    trace::verbose(_X("[%s] doesn't exist in servicing [%s]"), LIBHOSTPOLICY_NAME, path.c_str());
-    return false;
-}
-
 SHARED_API int hostfxr_main(const int argc, const pal::char_t* argv[])
 {
     trace::setup();
 
-    pal::string_t own_dir;
-    auto mode = detect_operating_mode(argc, argv, &own_dir);
-
-    switch (mode)
-    {
-    case muxer:
-        {
-            trace::info(_X("Host operating in Muxer mode"));
-            fx_muxer_t muxer;
-            return muxer.execute(argc, argv);
-        }
-
-    case split_fx:
-        {
-            trace::info(_X("Host operating in split mode; own dir=[%s]"), own_dir.c_str());
-            corehost_init_t init(_X(""), std::vector<pal::string_t>(), own_dir, host_mode_t::split_fx, nullptr);
-            return execute_app(own_dir, &init, argc, argv);
-        }
-
-    case standalone:
-        {
-            trace::info(_X("Host operating from standalone app dir %s"), own_dir.c_str());
-
-            pal::string_t svc_dir;
-            corehost_init_t init(_X(""), std::vector<pal::string_t>(), _X(""), host_mode_t::standalone, nullptr);
-            return execute_app(
-                hostpolicy_exists_in_svc(&svc_dir) ? svc_dir : own_dir, &init, argc, argv);
-        }
-
-    default:
-        trace::error(_X("Unknown mode detected or could not resolve the mode."));
-        return StatusCode::CoreHostResolveModeFailure;
-    }
+    fx_muxer_t muxer;
+    return muxer.execute(argc, argv);
 }
 

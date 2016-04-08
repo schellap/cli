@@ -12,13 +12,12 @@
 #include "libhost.h"
 #include "error_codes.h"
 
+hostpolicy_init_t g_init;
 
-corehost_init_t* g_init = nullptr;
-
-int run(const corehost_init_t* init, const runtime_config_t& config, const arguments_t& args)
+int run(const arguments_t& args)
 {
     // Load the deps resolver
-    deps_resolver_t resolver(init, config, args);
+    deps_resolver_t resolver(g_init, args);
 
     if (!resolver.valid())
     {
@@ -55,6 +54,14 @@ int run(const corehost_init_t* init, const runtime_config_t& config, const argum
         "APP_CONTEXT_BASE_DIRECTORY",
         "APP_CONTEXT_DEPS_FILES"
     };
+    pal::string_t dev_config_file;
+    auto config_path = get_runtime_config_from_file(args.managed_application, &dev_config_file);
+    runtime_config_t config(config_path, dev_config_file);
+    if (!config.is_valid())
+    {
+        trace::error(_X("Invalid runtimeconfig.json [%s] [%s]"), config.get_path().c_str(), config.get_dev_path().c_str());
+        return StatusCode::InvalidConfigFile;
+    }
 
     auto tpa_paths_cstr = pal::to_stdstring(probe_paths.tpa);
     auto app_base_cstr = pal::to_stdstring(args.app_dir);
@@ -82,15 +89,10 @@ int run(const corehost_init_t* init, const runtime_config_t& config, const argum
         deps.c_str(),
     };
 
-    
-    std::vector<std::string> cfg_keys;
-    std::vector<std::string> cfg_values;
-    config.config_kv(&cfg_keys, &cfg_values);
-
-    for (int i = 0; i < cfg_keys.size(); ++i)
+    for (int i = 0; i < g_init.cfg_keys.size(); ++i)
     {
-        property_keys.push_back(cfg_keys[i].c_str());
-        property_values.push_back(cfg_values[i].c_str());
+        property_keys.push_back(g_init.cfg_keys[i].c_str());
+        property_values.push_back(g_init.cfg_values[i].c_str());
     }
 
     size_t property_size = property_keys.size();
@@ -188,19 +190,12 @@ int run(const corehost_init_t* init, const runtime_config_t& config, const argum
     return exit_code;
 }
 
-SHARED_API int corehost_load(corehost_init_t* init)
+SHARED_API int corehost_load(pal::char_t** keys, pal::char_t** values, int size)
 {
-    g_init = init;
-
     trace::setup();
-
-    if (g_init->version() != corehost_init_t::s_version)
-    {
-        trace::error(_X("Error loading hostpolicy %s; interface mismatch between hostpolicy [%d] and hostfxr [%d]"),
-                _STRINGIFY(HOST_POLICY_PKG_VER), corehost_init_t::s_version, g_init->version());
-        trace::error(_X("Specifically, the structure of corehost_init_t has changed, do not know how to interpret it"));
-        return StatusCode::LibHostInitFailure;
-    }
+    
+    hostpolicy_init_t::init(keys, values, size, &g_init);
+    
     return 0;
 }
 
@@ -221,9 +216,8 @@ SHARED_API int corehost_main(const int argc, const pal::char_t* argv[])
         }
         trace::info(_X("}"));
 
-        trace::info(_X("Host mode: %d"), g_init->host_mode());
-        trace::info(_X("Deps file: %s"), g_init->deps_file().c_str());
-        for (const auto& probe : g_init->probe_paths())
+        trace::info(_X("Deps file: %s"), g_init.deps_file.c_str());
+        for (const auto& probe : g_init.probe_paths)
         {
             trace::info(_X("Additional probe dir: %s"), probe.c_str());
         }
@@ -231,7 +225,7 @@ SHARED_API int corehost_main(const int argc, const pal::char_t* argv[])
 
     // Take care of arguments
     arguments_t args;
-    if (!parse_arguments(g_init->deps_file(), g_init->probe_paths(), g_init->host_mode(), argc, argv, &args))
+    if (!parse_arguments(g_init.deps_file, g_init.probe_paths, g_init.host_mode, argc, argv, &args))
     {
         return StatusCode::LibHostInvalidArgs;
     }
@@ -240,28 +234,10 @@ SHARED_API int corehost_main(const int argc, const pal::char_t* argv[])
         args.print();
     }
 
-    if (g_init->runtime_config())
-    {
-        return run(g_init, *g_init->runtime_config(), args);
-    }
-    else
-    {
-        pal::string_t dev_config_file;
-        auto config_path = get_runtime_config_from_file(args.managed_application, &dev_config_file);
-        runtime_config_t config(config_path, dev_config_file);
-        if (!config.is_valid())
-        {
-            trace::error(_X("Invalid runtimeconfig.json [%s] [%s]"), config.get_path().c_str(), config.get_dev_path().c_str());
-            return StatusCode::InvalidConfigFile;
-        }
-        // TODO: This is ugly. The whole runtime config/probe paths business should all be resolved by and come from the hostfxr.cpp.
-        args.probe_paths.insert(args.probe_paths.end(), config.get_probe_paths().begin(), config.get_probe_paths().end());
-        return run(g_init, config, args);
-    }
+    return run(args);
 }
 
 SHARED_API int corehost_unload()
 {
-    g_init = nullptr;
     return 0;
 }

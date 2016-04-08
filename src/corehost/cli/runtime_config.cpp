@@ -211,11 +211,7 @@ const std::list<pal::string_t>& runtime_config_t::get_probe_paths() const
     return m_probe_paths;
 }
 
-void runtime_config_t::config_kv(std::vector<std::string>* keys, std::vector<std::string>* values) const
+const std::unordered_map<pal::string_t, pal::string_t>& runtime_config_t::properties() const
 {
-    for (const auto& kv : m_properties)
-    {
-        keys->push_back(pal::to_stdstring(kv.first));
-        values->push_back(pal::to_stdstring(kv.second));
-    }
+    return m_properties;
 }

@@ -4,6 +4,7 @@
 class corehost_init_t;
 class runtime_config_t;
 struct fx_ver_t;
+enum host_mode_t;
 
 int execute_app(
     const pal::string_t& impl_dll_dir,
@@ -16,7 +17,7 @@ class fx_muxer_t
 public:
     static int execute(const int argc, const pal::char_t* argv[]);
 private:
-    static int parse_args_and_execute(const pal::string_t& own_dir, int argoff, int argc, const pal::char_t* argv[], bool exec_mode, bool* can_execute);
+    static int parse_args_and_execute(const pal::string_t& own_dir, int argoff, int argc, const pal::char_t* argv[], bool exec_mode, host_mode_t mode, bool* can_execute);
     static pal::string_t resolve_fx_dir(const pal::string_t& muxer_path, runtime_config_t* runtime);
     static pal::string_t resolve_cli_version(const pal::string_t& global);
     static bool resolve_sdk_dotnet_path(const pal::string_t& own_dir, pal::string_t* cli_sdk);
