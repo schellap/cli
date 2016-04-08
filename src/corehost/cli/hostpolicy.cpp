@@ -190,11 +190,11 @@ int run(const arguments_t& args)
     return exit_code;
 }
 
-SHARED_API int corehost_load(pal::char_t** keys, pal::char_t** values, int size)
+SHARED_API int corehost_load(host_interface_t* init)
 {
     trace::setup();
     
-    hostpolicy_init_t::init(keys, values, size, &g_init);
+    hostpolicy_init_t::init(init);
     
     return 0;
 }

@@ -18,12 +18,23 @@ enum host_mode_t
 class fx_ver_t;
 class runtime_config_t;
 
-class corehost_init_t
+class host_interface_t
+{
+    virtual pal::char_t* get_string_value(pal::char_t* name) = 0;
+    virtual void del_string_value(pal::char_t* value) = 0;
+    virtual int get_string_array(pal::char_t* name, pal::char_t*** value) = 0;
+    virtual void del_string_array(pal::char_t** value) = 0;
+    virtual int get_int_value(pal::char_t* name) = 0;
+};
+
+class corehost_init_t : host_interface_t
 {
 private:
-    std::vector<pal::string_t> m_keys;
-    std::vector<pal::string_t> m_values;
-    pal::string_t m_fx_dir;
+    int m_version;
+    std::vector<pal::string_t> m_probe_paths;
+    const pal::string_t m_deps_file;
+    const pal::string_t m_fx_dir;
+    host_mode_t m_host_mode;
     const runtime_config_t* m_runtime_config;
 public:
     corehost_init_t(
@@ -31,47 +42,13 @@ public:
         const std::vector<pal::string_t>& probe_paths,
         const pal::string_t& fx_dir,
         const host_mode_t mode,
-        const runtime_config_t* config)
-        : m_runtime_config(config)
-        , m_fx_dir(fx_dir)
+        const runtime_config_t* runtime_config)
+        : m_fx_dir(fx_dir)
+        , m_runtime_config(runtime_config)
+        , m_deps_file(deps_file)
+        , m_probe_paths(probe_paths)
+        , m_host_mode(mode)
     {
-        pal::stringstream_t joined;
-        for (const auto& probe : probe_paths)
-        {
-            joined << probe;
-            joined << PATH_SEPARATOR;
-        }
-        for (const auto& probe : config->get_probe_paths())
-        {
-            joined << probe;
-            joined << PATH_SEPARATOR;
-        }
-
-        m_keys.push_back(_X("host.app.deps_file"));
-        m_keys.push_back(_X("host.app.probe_paths"));
-        m_keys.push_back(_X("host.fx.dir"));
-        m_keys.push_back(_X("host.mode"));
-        m_keys.push_back(_X("host.patch_roll_forward"));
-        m_keys.push_back(_X("host.prerelease_roll_forward"));
-        m_keys.push_back(_X("host.is_portable"));
-        m_keys.push_back(_X("host.fx.name"));
-
-        m_values.push_back(deps_file);
-        m_values.push_back(joined.str());
-        m_values.push_back(fx_dir);
-        m_values.push_back(pal::to_string(mode));
-        m_values.push_back(pal::to_string(config->get_patch_roll_fwd()));
-        m_values.push_back(pal::to_string(config->get_prerelease_roll_fwd()));
-        m_values.push_back(pal::to_string(config->get_portable()));
-        m_values.push_back(config->get_fx_name());
-
-        std::vector<pal::string_t> keys;
-        std::vector<pal::string_t> values;
-        for (const auto& pair : config->properties())
-        {
-            keys.push_back(_X("coreclr.") + pair.first);
-            values.push_back(pair.second);
-        }
     }
 
     const runtime_config_t* runtime_config() const
@@ -83,6 +60,8 @@ public:
     {
         return m_fx_dir;
     }
+
+
 
 };
 
@@ -100,65 +79,38 @@ struct hostpolicy_init_t
     std::vector<std::string> cfg_keys;
     std::vector<std::string> cfg_values;
 
-    static void init(pal::char_t** keys, pal::char_t** values, int size, hostpolicy_init_t* init)
+    static void get_config_string(const pal::char_t* name, pal::string_t* val)
     {
-        init->patch_roll_forward = false;
-        init->prerelease_roll_forward = false;
-        init->is_portable = false;
+        pal::char_t* str = input->get_string_value(name);
+        val->assign(str);
+        input->del_string_value(str);
+    }
 
+    static void get_config_array(const pal::char_t* name, std::vector<pal::string_t>* val)
+    {
+        char** values;
+        int size = input->get_string_array(name, &values);
         for (int i = 0; i < size; ++i)
         {
-            if (pal::strcasecmp(keys[i], _X("host.app.deps_file")) == 0)
-            {
-                init->deps_file = values[i];
-            }
-            else if (pal::strcasecmp(keys[i], _X("host.fx.dir")) == 0)
-            {
-                init->fx_dir = values[i];
-            }
-            else if (pal::strcasecmp(keys[i], _X("host.fx.name")) == 0)
-            {
-                init->fx_name = values[i];
-            }
-            else if (pal::strcasecmp(keys[i], _X("host.mode")) == 0)
-            {
-                init->host_mode = (host_mode_t)std::stoi(pal::string_t(values[i]));
-            }
-            else if (pal::strcasecmp(keys[i], _X("host.app.probe_paths")) == 0)
-            {
-                pal::char_t* ptr = values[i];
-                pal::char_t* buf = ptr;
-                while (*ptr)
-                {
-                    if (*ptr == PATH_SEPARATOR)
-                    {
-                        init->probe_paths.push_back(pal::string_t(buf, ptr - buf));
-                        buf = ptr + 1;
-                    }
-                    ptr++;
-                }
-                init->probe_paths.push_back(pal::string_t(buf, ptr - buf));
-            }
-            else if (pal::strcasecmp(keys[i], _X("host.patch_roll_forward")) == 0)
-            {
-                init->patch_roll_forward = std::stoi(pal::string_t(values[i]));
-            }
-            else if (pal::strcasecmp(keys[i], _X("host.prerelease_roll_forward")) == 0)
-            {
-                init->prerelease_roll_forward = std::stoi(pal::string_t(values[i]));
-            }
-            else if (pal::strcasecmp(keys[i], _X("host.is_portable")) == 0)
-            {
-                init->is_portable = std::stoi(pal::string_t(values[i]));
-            }
-            else if (starts_with(keys[i], _X("coreclr."), false))
-            {
-                pal::string_t key = keys[i];
-                key.substr(pal::string_t(_X("coreclr.")).size());
-                init->cfg_keys.push_back(pal::to_stdstring(key));
-                init->cfg_values.push_back(pal::to_stdstring(values[i]));
-            }
+            val->push_back(values[i]);
         }
+        input->del_string_array(values);
+    }
+
+    static void init(host_interface_t* input, hostpolicy_init_t* init)
+    {
+        init->host_mode = (host_mode_t) input->get_int_value(_X("host.mode"));
+        init->patch_roll_forward = input->get_int_value(_X("host.patch_roll_forward"));
+        init->prerelease_roll_forward = input->get_int_value(_X("host.prerelease_roll_forward"));
+        init->is_portable = input->get_int_value(_X("host.is_portable"));
+
+        get_config_string(input, _X("host.app.deps_file"), &init->deps_file);
+        get_config_string(input, _X("host.fx.dir"), &init->fx_dir);
+        get_config_string(input, _X("host.fx.name"), &init->fx_name);
+
+        get_config_string_array(input, _X("host.app.probe_paths"), &init->probe_paths);
+        get_config_string_array(input, _X("coreclr.config.values"), &init->cfg_values);
+        get_config_string_array(input, _X("coreclr.config.keys"), &init->cfg_keys);
     }
 };
 
