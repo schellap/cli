@@ -37,14 +37,14 @@ struct host_interface_t
     const pal::char_t* fx_dir;
     const pal::char_t* fx_name;
     const pal::char_t* deps_file;
-    int8_t is_portable;
+    bool is_portable;
     strarr_t probe_paths;
-    int8_t patch_roll_forward;
-    int8_t prerelease_roll_forward;
+    bool patch_roll_forward;
+    bool prerelease_roll_forward;
+    int host_mode;
     // Only append to this structure to maintain compat.
     // Any nested structs should not use compiler specific 
     // struct padding. The fields are 8-byte aligned.
-    // Do not take the address of the struct members.
 };
 #pragma pack(pop)
 
@@ -128,6 +128,7 @@ public:
 
         hi.patch_roll_forward = m_patch_roll_forward;
         hi.prerelease_roll_forward = m_prerelease_roll_forward;
+        hi.host_mode = m_host_mode;
         
         return hi;
     }
@@ -174,6 +175,7 @@ struct hostpolicy_init_t
 
         init->patch_roll_forward = input->patch_roll_forward;
         init->prerelease_roll_forward = input->prerelease_roll_forward;
+        init->host_mode = (host_mode_t) input->host_mode;
     }
 
 private:
@@ -197,7 +199,7 @@ private:
 };
 
 pal::string_t get_runtime_config_from_file(const pal::string_t& file, pal::string_t* dev_config_file);
-host_mode_t detect_operating_mode(const int argc, const pal::char_t* argv[], pal::string_t* own_dir = nullptr);
+
 
 void try_patch_roll_forward_in_dir(const pal::string_t& cur_dir, const fx_ver_t& start_ver, pal::string_t* max_str);
 void try_prerelease_roll_forward_in_dir(const pal::string_t& cur_dir, const fx_ver_t& start_ver, pal::string_t* max_str);
