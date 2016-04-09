@@ -19,29 +19,34 @@ enum host_mode_t
 class fx_ver_t;
 class runtime_config_t;
 
-struct strarr_t
+enum host_keys_t
 {
-    // Do not modify this struct
-    int32_t len;
-    const pal::char_t** arr;
+    // Only append to this list.
+    invalid,
+    config_keys,
+    config_values,
+    fx_dir,
+    fx_name,
+    fx_version,
+    deps_file,
+    probe_paths,
+    host_mode,
+    patch_roll_forward,
+    prerelease_roll_forward,
+    // Only append to this list.
 };
 
 struct host_interface_t
 {
-    int32_t own_size;
-    strarr_t config_keys;
-    strarr_t config_values;
-    const pal::char_t* fx_dir;
-    const pal::char_t* fx_name;
-    const pal::char_t* deps_file;
-    int8_t is_portable;
-    strarr_t probe_paths;
-    int8_t patch_roll_forward;
-    int8_t prerelease_roll_forward;
-    // Only append to this structure to maintain compat. Only ints and strings, no bools.
+    virtual bool peek_strarr(host_keys_t key, const pal::char_t** arr, int* len) = 0;
+    virtual bool peek_string(host_keys_t key, const pal::char_t** val) = 0;
+    virtual bool peek_intarr(host_keys_t key, const int** arr, int* len) = 0;
+    virtual bool peek_int(host_keys_t key, int* val) = 0;
+    virtual bool peek_arr(host_keys_t key, const void** val, int* len) = 0;
+    virtual bool peek(host_keys_t key, const void** val) = 0;
 };
 
-class corehost_init_t
+class corehost_init_t : host_interface_t
 {
 private:
     std::vector<pal::string_t> m_clr_keys;
@@ -59,7 +64,6 @@ private:
     bool m_patch_roll_forward;
     bool m_prerelease_roll_forward;
 
-    host_interface_t m_host_interface;
 public:
     corehost_init_t(
         const pal::string_t& deps_file,
@@ -76,7 +80,6 @@ public:
         , m_portable(runtime_config.get_portable())
         , m_patch_roll_forward(runtime_config.get_patch_roll_fwd())
         , m_prerelease_roll_forward(runtime_config.get_prerelease_roll_fwd())
-        , m_host_interface{ 0 }
     {
         runtime_config.config_kv(&m_clr_keys, &m_clr_values);
         make_cstr_arr(m_clr_keys, &m_clr_keys_cstr);
@@ -101,28 +104,70 @@ public:
 
     const host_interface_t& get_host_init_data()
     {
-        host_interface_t& hi = m_host_interface;
+        return *this;
+    }
 
-        hi.own_size = sizeof(host_interface_t);
+    bool peek_string(host_keys_t keys, const pal::char_t** str)
+    {
+        switch (keys)
+        {
+        case host_keys_t::fx_dir:
+            *str = m_fx_dir.c_str();
+            return true;
+        case host_keys_t::fx_name:
+            *str = m_fx_name.c_str();
+            return true;
+        case host_keys_t::fx_version:
+            *str = m_fx_ver.c_str();
+            return true;
+        case host_keys_t::deps_file:
+            *str = m_deps_file.c_str();
+            return true;
+        default:
+            return false;
+        }
+    }
 
-        hi.config_keys.len = m_clr_keys_cstr.size();
-        hi.config_keys.arr = m_clr_keys_cstr.data();
+    bool peek_array(host_keys_t keys, void** arr, int* len)
+    {
+        switch (keys)
+        {
+        case host_keys_t::config_keys:
+            *arr = m_clr_keys_cstr.data();
+            *len = m_clr_keys_cstr.size();
+            return true;
 
-        hi.config_values.len = m_clr_values_cstr.size();
-        hi.config_values.arr = m_clr_values_cstr.data();
+        case host_keys_t::config_values:
+            *arr = m_clr_values_cstr.data();
+            *len = m_clr_values_cstr.size();
+            return true;
 
-        hi.fx_dir = m_fx_dir.c_str();
-        hi.fx_name = m_fx_name.c_str();
-        hi.deps_file = m_deps_file.c_str();
-        hi.is_portable = m_portable;
+        case host_keys_t::probe_paths:
+            *arr = m_probe_paths_cstr.data();
+            *len = m_probe_paths_cstr.size();
+            return true;
 
-        hi.probe_paths.len = m_probe_paths_cstr.size();
-        hi.probe_paths.arr = m_probe_paths_cstr.data();
+        default:
+            return false;
+        }
+    }
 
-        hi.patch_roll_forward = m_patch_roll_forward;
-        hi.prerelease_roll_forward = m_prerelease_roll_forward;
-        
-        return hi;
+    bool peek_int(host_keys_t keys, int* value)
+    {
+        switch (keys)
+        {
+        case host_mode:
+            *value = m_host_mode;
+            return true;
+        case patch_roll_forward:
+            *value = m_patch_roll_forward;
+            return true;
+        case prerelease_roll_forward:
+            *value = prerelease_roll_forward;
+            return true;
+        default:
+            return false;
+        }
     }
 
 private:
@@ -154,7 +199,7 @@ struct hostpolicy_init_t
     static void init(host_interface_t* input, hostpolicy_init_t* init)
     {
         trace::verbose(_X("Reading from host interface version: [%d] policy version: [%d]"), input->own_size, sizeof(host_interface_t));
-
+        input->peek_array(host_keys_t::config_keys, )
         make_stdstr_arr(input->config_keys.len, input->config_keys.arr, &init->cfg_keys);
         make_stdstr_arr(input->config_values.len, input->config_values.arr, &init->cfg_values);
 
