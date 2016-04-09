@@ -44,6 +44,7 @@ struct host_interface_t
     // Only append to this structure to maintain compat.
     // Any nested structs should not use compiler specific 
     // struct padding. The fields are 8-byte aligned.
+    // Do not take the address of the struct members.
 };
 #pragma pack(pop)
 

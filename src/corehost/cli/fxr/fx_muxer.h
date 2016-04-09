@@ -4,7 +4,8 @@
 class corehost_init_t;
 class runtime_config_t;
 struct fx_ver_t;
-enum host_mode_t;
+
+#include "libhost.h"
 
 int execute_app(
     const pal::string_t& impl_dll_dir,
