@@ -8,7 +8,7 @@ enum host_mode_t;
 
 int execute_app(
     const pal::string_t& impl_dll_dir,
-    const corehost_init_t* init,
+    corehost_init_t* init,
     const int argc,
     const pal::char_t* argv[]);
 

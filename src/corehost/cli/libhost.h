@@ -3,7 +3,8 @@
 
 #ifndef __LIBHOST_H__
 #define __LIBHOST_H__
-
+#include <stdint.h>
+#include "trace.h"
 #include "runtime_config.h"
 #include "fx_ver.h"
 
@@ -18,42 +19,75 @@ enum host_mode_t
 class fx_ver_t;
 class runtime_config_t;
 
-class host_interface_t
+#pragma pack(push, 8)
+struct strarr_t
 {
-    virtual pal::char_t* get_string_value(pal::char_t* name) = 0;
-    virtual void del_string_value(pal::char_t* value) = 0;
-    virtual int get_string_array(pal::char_t* name, pal::char_t*** value) = 0;
-    virtual void del_string_array(pal::char_t** value) = 0;
-    virtual int get_int_value(pal::char_t* name) = 0;
+    // DO NOT modify this struct
+    int32_t len;
+    const pal::char_t** arr;
 };
+#pragma pack(pop)
 
-class corehost_init_t : host_interface_t
+#pragma pack(push, 8)
+struct host_interface_t
+{
+    int32_t own_size;
+    strarr_t config_keys;
+    strarr_t config_values;
+    const pal::char_t* fx_dir;
+    const pal::char_t* fx_name;
+    const pal::char_t* deps_file;
+    int8_t is_portable;
+    strarr_t probe_paths;
+    int8_t patch_roll_forward;
+    int8_t prerelease_roll_forward;
+    // Only append to this structure to maintain compat.
+    // Any nested structs should not use compiler specific 
+    // struct padding. The fields are 8-byte aligned.
+};
+#pragma pack(pop)
+
+class corehost_init_t
 {
 private:
-    int m_version;
-    std::vector<pal::string_t> m_probe_paths;
-    const pal::string_t m_deps_file;
+    std::vector<pal::string_t> m_clr_keys;
+    std::vector<pal::string_t> m_clr_values;
+    std::vector<const pal::char_t*> m_clr_keys_cstr;
+    std::vector<const pal::char_t*> m_clr_values_cstr;
     const pal::string_t m_fx_dir;
+    const pal::string_t m_fx_name;
+    const pal::string_t m_fx_ver;
+    const pal::string_t m_deps_file;
+    bool m_portable;
+    std::vector<pal::string_t> m_probe_paths;
+    std::vector<const pal::char_t*> m_probe_paths_cstr;
     host_mode_t m_host_mode;
-    const runtime_config_t* m_runtime_config;
+    bool m_patch_roll_forward;
+    bool m_prerelease_roll_forward;
+
+    host_interface_t m_host_interface;
 public:
     corehost_init_t(
         const pal::string_t& deps_file,
         const std::vector<pal::string_t>& probe_paths,
         const pal::string_t& fx_dir,
         const host_mode_t mode,
-        const runtime_config_t* runtime_config)
+        const runtime_config_t& runtime_config)
         : m_fx_dir(fx_dir)
-        , m_runtime_config(runtime_config)
+        , m_fx_name(runtime_config.get_fx_name())
+        , m_fx_ver(runtime_config.get_fx_version())
         , m_deps_file(deps_file)
         , m_probe_paths(probe_paths)
         , m_host_mode(mode)
+        , m_portable(runtime_config.get_portable())
+        , m_patch_roll_forward(runtime_config.get_patch_roll_fwd())
+        , m_prerelease_roll_forward(runtime_config.get_prerelease_roll_fwd())
+        , m_host_interface{ 0 }
     {
-    }
-
-    const runtime_config_t* runtime_config() const
-    {
-        return m_runtime_config;
+        runtime_config.config_kv(&m_clr_keys, &m_clr_values);
+        make_cstr_arr(m_clr_keys, &m_clr_keys_cstr);
+        make_cstr_arr(m_clr_values, &m_clr_values_cstr);
+        make_cstr_arr(m_probe_paths, &m_probe_paths_cstr);
     }
 
     const pal::string_t& fx_dir() const
@@ -61,13 +95,59 @@ public:
         return m_fx_dir;
     }
 
+    const pal::string_t& fx_name() const
+    {
+        return m_fx_name;
+    }
 
+    const pal::string_t& fx_version() const
+    {
+        return m_fx_ver;
+    }
 
+    const host_interface_t& get_host_init_data()
+    {
+        host_interface_t& hi = m_host_interface;
+
+        hi.own_size = sizeof(host_interface_t);
+
+        hi.config_keys.len = m_clr_keys_cstr.size();
+        hi.config_keys.arr = m_clr_keys_cstr.data();
+
+        hi.config_values.len = m_clr_values_cstr.size();
+        hi.config_values.arr = m_clr_values_cstr.data();
+
+        hi.fx_dir = m_fx_dir.c_str();
+        hi.fx_name = m_fx_name.c_str();
+        hi.deps_file = m_deps_file.c_str();
+        hi.is_portable = m_portable;
+
+        hi.probe_paths.len = m_probe_paths_cstr.size();
+        hi.probe_paths.arr = m_probe_paths_cstr.data();
+
+        hi.patch_roll_forward = m_patch_roll_forward;
+        hi.prerelease_roll_forward = m_prerelease_roll_forward;
+        
+        return hi;
+    }
+
+private:
+
+    static void make_cstr_arr(const std::vector<pal::string_t>& arr, std::vector<const pal::char_t*>* out)
+    {
+        out->reserve(arr.size());
+        for (const auto& str : arr)
+        {
+            out->push_back(str.c_str());
+        }
+    }
 };
 
 
 struct hostpolicy_init_t
 {
+    std::vector<std::string> cfg_keys;
+    std::vector<std::string> cfg_values;
     pal::string_t deps_file;
     std::vector<pal::string_t> probe_paths;
     pal::string_t fx_dir;
@@ -76,41 +156,42 @@ struct hostpolicy_init_t
     bool patch_roll_forward;
     bool prerelease_roll_forward;
     bool is_portable;
-    std::vector<std::string> cfg_keys;
-    std::vector<std::string> cfg_values;
-
-    static void get_config_string(const pal::char_t* name, pal::string_t* val)
-    {
-        pal::char_t* str = input->get_string_value(name);
-        val->assign(str);
-        input->del_string_value(str);
-    }
-
-    static void get_config_array(const pal::char_t* name, std::vector<pal::string_t>* val)
-    {
-        char** values;
-        int size = input->get_string_array(name, &values);
-        for (int i = 0; i < size; ++i)
-        {
-            val->push_back(values[i]);
-        }
-        input->del_string_array(values);
-    }
 
     static void init(host_interface_t* input, hostpolicy_init_t* init)
     {
-        init->host_mode = (host_mode_t) input->get_int_value(_X("host.mode"));
-        init->patch_roll_forward = input->get_int_value(_X("host.patch_roll_forward"));
-        init->prerelease_roll_forward = input->get_int_value(_X("host.prerelease_roll_forward"));
-        init->is_portable = input->get_int_value(_X("host.is_portable"));
+        trace::verbose(_X("Reading from host interface version: [%d] policy version: [%d]"), input->own_size, sizeof(host_interface_t));
 
-        get_config_string(input, _X("host.app.deps_file"), &init->deps_file);
-        get_config_string(input, _X("host.fx.dir"), &init->fx_dir);
-        get_config_string(input, _X("host.fx.name"), &init->fx_name);
+        make_stdstr_arr(input->config_keys.len, input->config_keys.arr, &init->cfg_keys);
+        make_stdstr_arr(input->config_values.len, input->config_values.arr, &init->cfg_values);
 
-        get_config_string_array(input, _X("host.app.probe_paths"), &init->probe_paths);
-        get_config_string_array(input, _X("coreclr.config.values"), &init->cfg_values);
-        get_config_string_array(input, _X("coreclr.config.keys"), &init->cfg_keys);
+        init->fx_dir = input->fx_dir;
+        init->fx_name = input->fx_name;
+        init->deps_file = input->deps_file;
+        init->is_portable = input->is_portable;
+
+        make_palstr_arr(input->probe_paths.len, input->probe_paths.arr, &init->probe_paths);
+
+        init->patch_roll_forward = input->patch_roll_forward;
+        init->prerelease_roll_forward = input->prerelease_roll_forward;
+    }
+
+private:
+    static void make_palstr_arr(int argc, const pal::char_t** argv, std::vector<pal::string_t>* out)
+    {
+        out->reserve(argc);
+        for (int i = 0; i < argc; ++i)
+        {
+            out->push_back(argv[i]);
+        }
+    }
+
+    static void make_stdstr_arr(int argc, const pal::char_t** argv, std::vector<std::string>* out)
+    {
+        out->reserve(argc);
+        for (int i = 0; i < argc; ++i)
+        {
+            out->push_back(pal::to_stdstring(argv[i]));
+        }
     }
 };
 

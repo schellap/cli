@@ -11,7 +11,7 @@
 #include "libhost.h"
 #include "runtime_config.h"
 
-typedef int(*corehost_load_fn) (const corehost_init_t* init);
+typedef int(*corehost_load_fn) (const host_interface_t* init);
 typedef int(*corehost_main_fn) (const int argc, const pal::char_t* argv[]);
 typedef int(*corehost_unload_fn) ();
 
@@ -47,7 +47,7 @@ int load_host_library(
 
 int execute_app(
     const pal::string_t& impl_dll_dir,
-    const corehost_init_t* init,
+    corehost_init_t* init,
     const int argc,
     const pal::char_t* argv[])
 {
@@ -63,15 +63,16 @@ int execute_app(
         trace::error(_X("Could not load host policy library from [%s]"), impl_dll_dir.c_str());
         if (init->fx_dir() == impl_dll_dir)
         {
-            pal::string_t name = init->runtime_config()->get_fx_name();
-            pal::string_t version = init->runtime_config()->get_fx_version();
+            pal::string_t name = init->fx_name();
+            pal::string_t version = init->fx_version();
             trace::error(_X("This may be because the targeted framework [%s %s] was not found."),
                 name.c_str(), version.c_str());
         }
         return code;
     }
 
-    if ((code = host_load(init)) == 0)
+    const host_interface_t intf = init->get_host_init_data();
+    if ((code = host_load(&intf)) == 0)
     {
         code = host_main(argc, argv);
         (void)host_unload();
