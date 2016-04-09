@@ -91,8 +91,6 @@ namespace Microsoft.DotNet.Cli.Utils
             var host = string.Empty;
             var arguments = new List<string>();
 
-            if (isPortable)
-            {
                 var muxer = new Muxer();
 
                 host = muxer.MuxerPath;
@@ -102,13 +100,6 @@ namespace Microsoft.DotNet.Cli.Utils
                 }
 
                 arguments.Add("exec");
-            }
-            else
-            {
-                host = CoreHost.HostExePath;
-            }
-
-            arguments.Add(commandPath);
 
             if (depsFilePath != null)
             {
@@ -119,6 +110,7 @@ namespace Microsoft.DotNet.Cli.Utils
             arguments.Add("--additionalprobingpath");
             arguments.Add(nugetPackagesRoot);
 
+            arguments.Add(commandPath);
             arguments.AddRange(commandArguments);
 
             return CreateCommandSpec(host, arguments, commandResolutionStrategy);
