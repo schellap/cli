@@ -26,7 +26,7 @@ public:
     bool get_prerelease_roll_fwd() const;
     bool get_portable() const;
     bool parse_opts(const json_value& opts);
-    const std::unordered_map<pal::string_t, pal::string_t>& runtime_config_t::properties() const;
+    void config_kv(std::vector<pal::string_t>*, std::vector<pal::string_t>*) const;
 
 private:
     bool ensure_parsed();

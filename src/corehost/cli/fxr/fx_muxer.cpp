@@ -388,7 +388,7 @@ int fx_muxer_t::parse_args_and_execute(const pal::string_t& own_dir,
     {
         trace::verbose(_X("Executing as a portable app as per config file [%s]"), config_file.c_str());
         pal::string_t fx_dir = (mode == host_mode_t::split_fx) ? own_dir : resolve_fx_dir(own_dir, &config);
-        corehost_init_t init(deps_file, probe_paths, fx_dir, mode, &config);
+        corehost_init_t init(deps_file, probe_paths, fx_dir, mode, config);
         return execute_app(fx_dir, &init, new_argc, new_argv);
     }
     else
@@ -422,7 +422,7 @@ int fx_muxer_t::parse_args_and_execute(const pal::string_t& own_dir,
             }
             impl_dir = get_directory(candidate);
         }
-        corehost_init_t init(deps_file, probe_paths, _X(""), mode, &config);
+        corehost_init_t init(deps_file, probe_paths, _X(""), mode, config);
         return execute_app(impl_dir, &init, new_argc, new_argv);
     }
 }

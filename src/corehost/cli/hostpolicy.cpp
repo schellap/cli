@@ -54,14 +54,6 @@ int run(const arguments_t& args)
         "APP_CONTEXT_BASE_DIRECTORY",
         "APP_CONTEXT_DEPS_FILES"
     };
-    pal::string_t dev_config_file;
-    auto config_path = get_runtime_config_from_file(args.managed_application, &dev_config_file);
-    runtime_config_t config(config_path, dev_config_file);
-    if (!config.is_valid())
-    {
-        trace::error(_X("Invalid runtimeconfig.json [%s] [%s]"), config.get_path().c_str(), config.get_dev_path().c_str());
-        return StatusCode::InvalidConfigFile;
-    }
 
     auto tpa_paths_cstr = pal::to_stdstring(probe_paths.tpa);
     auto app_base_cstr = pal::to_stdstring(args.app_dir);
@@ -194,15 +186,13 @@ SHARED_API int corehost_load(host_interface_t* init)
 {
     trace::setup();
     
-    hostpolicy_init_t::init(init);
+    hostpolicy_init_t::init(init, &g_init);
     
     return 0;
 }
 
 SHARED_API int corehost_main(const int argc, const pal::char_t* argv[])
 {
-    assert(g_init);
-
     if (trace::is_enabled())
     {
         trace::info(_X("--- Invoked policy [%s/%s/%s] main = {"),
