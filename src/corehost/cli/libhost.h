@@ -19,34 +19,42 @@ enum host_mode_t
 class fx_ver_t;
 class runtime_config_t;
 
-#pragma pack(push, 8)
+// Do not modify this line
+#define _HOST_INTERFACE_PACK 1
+#pragma pack(push, _HOST_INTERFACE_PACK)
 struct strarr_t
 {
-    // DO NOT modify this struct
+    // DO NOT modify this struct. It is used in a layout
+    // dependent manner. Create another for your use.
     int32_t len;
     const pal::char_t** arr;
 };
-#pragma pack(pop)
 
-#pragma pack(push, 8)
 struct host_interface_t
 {
+    friend class hostpolicy_init_t;
+    friend class corehost_init_t;
+private:
     int32_t own_size;
     strarr_t config_keys;
     strarr_t config_values;
     const pal::char_t* fx_dir;
     const pal::char_t* fx_name;
     const pal::char_t* deps_file;
-    bool is_portable;
+    int8_t is_portable;
     strarr_t probe_paths;
-    bool patch_roll_forward;
-    bool prerelease_roll_forward;
-    int host_mode;
-    // Only append to this structure to maintain compat.
-    // Any nested structs should not use compiler specific 
-    // struct padding. The fields are 8-byte aligned.
+    int8_t patch_roll_forward;
+    int8_t prerelease_roll_forward;
+    int8_t host_mode;
+    // !! WARNING / WARNING / WARNING / WARNING / WARNING / WARNING / WARNING / WARNING / WARNING
+    // !! 1. Only append to this structure to maintain compat.
+    // !! 2. Any nested structs should not use compiler specific padding (pack with _HOST_INTERFACE_PACK)
+    // !! 3. Do not take address of the fields of this struct or be prepared to deal with unaligned accesses.
+    // !! 4. Must be POD types; use sized integral and pointer types.
+    // !! 5. Do not change any existing field types.
 };
 #pragma pack(pop)
+static_assert(_HOST_INTERFACE_PACK == 1, "Packing size should not be modified for back compat");
 
 class corehost_init_t
 {
@@ -83,7 +91,7 @@ public:
         , m_portable(runtime_config.get_portable())
         , m_patch_roll_forward(runtime_config.get_patch_roll_fwd())
         , m_prerelease_roll_forward(runtime_config.get_prerelease_roll_fwd())
-        , m_host_interface{ 0 }
+        , m_host_interface()
     {
         runtime_config.config_kv(&m_clr_keys, &m_clr_values);
         make_cstr_arr(m_clr_keys, &m_clr_keys_cstr);
