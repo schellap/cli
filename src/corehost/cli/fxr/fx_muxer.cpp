@@ -333,6 +333,7 @@ int fx_muxer_t::read_config_and_execute(
         {
             impl_dir = get_directory(app_or_deps);
         }
+        trace::verbose(_X("The host impl directory before probing deps is [%s]"), impl_dir.c_str());
         if (!library_exists_in_dir(impl_dir, LIBHOSTPOLICY_NAME, nullptr) && !probe_paths.empty() && !deps_file.empty())
         {
             bool found = false;

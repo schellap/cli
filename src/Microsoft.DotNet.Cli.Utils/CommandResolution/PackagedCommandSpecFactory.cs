@@ -91,6 +91,8 @@ namespace Microsoft.DotNet.Cli.Utils
             var host = string.Empty;
             var arguments = new List<string>();
 
+           if (isPortable)
+           {
                 var muxer = new Muxer();
 
                 host = muxer.MuxerPath;
@@ -100,6 +102,11 @@ namespace Microsoft.DotNet.Cli.Utils
                 }
 
                 arguments.Add("exec");
+           }
+           else
+           {
+               host = CoreHost.HostExePath;
+           }
 
             if (depsFilePath != null)
             {
