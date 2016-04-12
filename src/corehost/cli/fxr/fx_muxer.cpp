@@ -328,6 +328,32 @@ int fx_muxer_t::parse_args_and_execute(
     return read_config_and_execute(own_dir, app_candidate, opts, new_argc, new_argv, mode);
 }
 
+bool get_serviced_impl(host_mode_t mode, int argc, const pal::char_t** argv, pal::string_t* impl_dir)
+{
+    pal::string_t application;
+    if (mode != host_mode_t::standalone)
+    {
+        application = pal::string_t(argv[1]);
+        if (!pal::realpath(&application))
+        {
+            return false;
+        }
+    }
+    else
+    {
+        // coreconsole mode. Find the managed app in the same directory
+        pal::string_t managed_app(own_dir);
+        managed_app.push_back(DIR_SEPARATOR);
+        managed_app.append(get_executable(own_name));
+        managed_app.append(_X(".dll"));
+        args.managed_application = managed_app;
+        if (!pal::realpath(&args.managed_application))
+        {
+            return false;
+        }
+    }
+}
+
 int fx_muxer_t::read_config_and_execute(
     const pal::string_t& own_dir, 
     const pal::string_t& app_candidate,
@@ -378,24 +404,31 @@ int fx_muxer_t::read_config_and_execute(
         trace::verbose(_X("Executing as a portable app as per config file [%s]"), config_file.c_str());
         pal::string_t fx_dir = (mode == host_mode_t::split_fx) ? own_dir : resolve_fx_dir(own_dir, &config);
         corehost_init_t init(deps_file, probe_paths, fx_dir, mode, config);
-        return execute_app(fx_dir, &init, new_argc, new_argv);
+
+        pal::string_t impl_dir = fx_dir;
+        pal::string_t fx_deps = fx_dir;
+        pal::string_t fx_deps_name = config.get_fx_name() + _X(".deps.json");
+        append_path(&fx_deps, fx_deps_name.c_str());
+        if (hostpolicy_exists_in_svc(fx_deps, &svc_dir))
+        {
+            impl_dir = svc_dir;
+        }
+        return execute_app(impl_dir, &init, new_argc, new_argv);
     }
     else
     {
         pal::string_t impl_dir;
         trace::verbose(_X("Executing as a standalone app as per config file [%s]"), config_file.c_str());
-        if (mode == host_mode_t::standalone)
+        if (!get_serviced_impl(mode, new_argc, new_argv, config, &impl_dir))
         {
-            pal::string_t svc_dir;
-            impl_dir = hostpolicy_exists_in_svc(&svc_dir) ? svc_dir : own_dir;
-        }
-        else if (mode == host_mode_t::split_fx)
-        {
-            impl_dir = own_dir;
-        }
-        else if (mode == host_mode_t::muxer)
-        {
-            impl_dir = get_directory(app_or_deps);
+            if (mode == host_mode_t::standalone || mode == host_mode_t::split_fx)
+            {
+                impl_dir = own_dir;
+            }
+            else if (mode == host_mode_t::muxer)
+            {
+                impl_dir = get_directory(app_or_deps);
+            }
         }
         trace::verbose(_X("The host impl directory before probing deps is [%s]"), impl_dir.c_str());
         if (!library_exists_in_dir(impl_dir, LIBHOSTPOLICY_NAME, nullptr) && !probe_paths.empty() && !deps_file.empty())
