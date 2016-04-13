@@ -328,30 +328,47 @@ int fx_muxer_t::parse_args_and_execute(
     return read_config_and_execute(own_dir, app_candidate, opts, new_argc, new_argv, mode);
 }
 
-bool get_serviced_impl(host_mode_t mode, int argc, const pal::char_t** argv, pal::string_t* impl_dir)
+bool get_serviced_impl(host_mode_t mode, pal::string_t deps_file, int argc, const pal::char_t** argv, pal::string_t* impl_dir)
 {
-    pal::string_t application;
-    if (mode != host_mode_t::standalone)
+    if (deps_file.empty())
     {
-        application = pal::string_t(argv[1]);
-        if (!pal::realpath(&application))
+        pal::string_t application;
+        if (mode != host_mode_t::standalone)
         {
-            return false;
+            application = pal::string_t(argv[1]);
+            if (!pal::realpath(&application))
+            {
+                return false;
+            }
         }
-    }
-    else
-    {
-        // coreconsole mode. Find the managed app in the same directory
-        pal::string_t managed_app(own_dir);
-        managed_app.push_back(DIR_SEPARATOR);
-        managed_app.append(get_executable(own_name));
-        managed_app.append(_X(".dll"));
-        args.managed_application = managed_app;
-        if (!pal::realpath(&args.managed_application))
+        else
         {
-            return false;
+            pal::string_t own_path;
+
+            if (!pal::get_own_executable_path(&own_path) || !pal::realpath(&own_path))
+            {
+                return false;
+            }
+
+            auto own_name = get_filename(own_path);
+            auto own_dir = get_directory(own_path);
+
+            application = own_dir;
+            application.push_back(DIR_SEPARATOR);
+            application.append(get_executable(own_name));
+            application.append(_X(".dll"));
+            if (!pal::realpath(&application))
+            {
+                return false;
+            }
         }
+        auto app_name = get_filename(application);
+        deps_file = get_directory(application);
+        deps_file.push_back(DIR_SEPARATOR);
+        deps_file.append(app_name, 0, app_name.find_last_of(_X(".")));
+        deps_file.append(_X(".deps.json"));
     }
+    return hostpolicy_exists_in_svc(deps_file, true, impl_dir);
 }
 
 int fx_muxer_t::read_config_and_execute(
@@ -409,7 +426,8 @@ int fx_muxer_t::read_config_and_execute(
         pal::string_t fx_deps = fx_dir;
         pal::string_t fx_deps_name = config.get_fx_name() + _X(".deps.json");
         append_path(&fx_deps, fx_deps_name.c_str());
-        if (hostpolicy_exists_in_svc(fx_deps, &svc_dir))
+        pal::string_t svc_dir;
+        if (hostpolicy_exists_in_svc(fx_deps, false, &svc_dir))
         {
             impl_dir = svc_dir;
         }
@@ -419,7 +437,7 @@ int fx_muxer_t::read_config_and_execute(
     {
         pal::string_t impl_dir;
         trace::verbose(_X("Executing as a standalone app as per config file [%s]"), config_file.c_str());
-        if (!get_serviced_impl(mode, new_argc, new_argv, config, &impl_dir))
+        if (!get_serviced_impl(mode, deps_file, new_argc, new_argv, &impl_dir))
         {
             if (mode == host_mode_t::standalone || mode == host_mode_t::split_fx)
             {
