@@ -103,6 +103,7 @@ esac
 __cmake_defines="${__cmake_defines} ${__arch_define}"
 
 
+# __rid_plat is the base RID that corehost is shipped for, effectively, the name of the folder in "runtimes/{__rid_plat}/native/" inside the nupkgs.
 __rid_plat=
 if [ "$(uname -s)" == "Darwin" ]; then
     __rid_plat=osx.10.10
@@ -124,6 +125,5 @@ if [ $__CrossBuild == 1 ]; then
     cmake "$DIR" -G "Unix Makefiles" $__cmake_defines -DCLI_CMAKE_RUNTIME_ID:STRING=$__runtime_id -DCLI_CMAKE_HOST_POLICY_VER:STRING=$__policy_ver -DCMAKE_CXX_COMPILER="$__CrossCompiler" -DCLI_CMAKE_PKG_RID:STRING=$__base_rid
 else
     cmake "$DIR" -G "Unix Makefiles" $__cmake_defines -DCLI_CMAKE_RUNTIME_ID:STRING=$__runtime_id -DCLI_CMAKE_HOST_POLICY_VER:STRING=$__policy_ver -DCLI_CMAKE_PKG_RID:STRING=$__base_rid
-fi
 set +x # turn off trace
 make

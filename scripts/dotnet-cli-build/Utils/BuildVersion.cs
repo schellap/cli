@@ -13,8 +13,20 @@
         public string VersionSuffix => $"{ReleaseSuffix}-{CommitCountString}";
         public string NuGetVersion => $"{Major}.{Minor}.{Patch}-{VersionSuffix}";
         public string NetCoreAppVersion => $"{Major}.{Minor}.{Patch}-rc2-3{CommitCountString}";
-        public string HostNuGetPackageVersion => $"{Major}.{Minor}.1-rc2-{CommitCountString}-00";
         public string ProductionVersion => $"{Major}.{Minor}.{Patch}";
+
+        // Host versions are independent of CLI versions. Moreover, these version numbers
+        // are baked into the binary and is used to look up a serviced binary replacement.
+        private static string LockedHostVersion = "1.0.1-rc2-{CommitCountString}-00";
+        private static string LockedHostFxrVersion = "1.0.1-rc2-{CommitCountString}-00";
+        private static string LatestHostVersion = "1.0.1-rc2-{CommitCountString}-00";
+        private static string LatestHostFxrVersion = "1.0.1-rc2-{CommitCountString}-00";
+        private static string LatestHostPolicyVersion = "1.0.1-rc2-{CommitCountString}-00";
+        private static Dictionary<string, string> LatestHostPackages = {
+            { "Microsoft.NETCore.DotNetHost", LatestHostVersion },
+            { "Microsoft.NETCore.DotNetHostResolver", LatestHostFxrVersion },
+            { "Microsoft.NETCore.DotNetHostPolicy", LatestHostPolicyVersion }
+        };
 
         public string GenerateMsiVersion()
         {
