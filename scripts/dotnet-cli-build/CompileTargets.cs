@@ -103,14 +103,12 @@ namespace Microsoft.DotNet.Cli.Build
         public static BuildTargetResult RestoreLockedCoreHost(BuildTargetContext c)
         {
             var buildVersion = c.BuildContext.Get<BuildVersion>("BuildVersion");
-            var lockedHostVersion = buildVersion.LockedHostVersion;
             var lockedHostFxrVersion = buildVersion.LockedHostFxrVersion;
             var defaultRid = (PlatformServices.Default.Runtime.OperatingSystemPlatform == Platform.Windows)
                            ? $"win7-{PlatformServices.Default.Runtime.RuntimeArchitecture}"
                            : PlatformServices.Default.Runtime.GetRuntimeIdentifier();
             string projectJson = $@"{{
   ""dependencies"": {{
-      ""Microsoft.NETCore.DotNetHost""         : ""{lockedHostVersion}"",
       ""Microsoft.NETCore.DotNetHostResolver"" : ""{lockedHostFxrVersion}""
   }},
   ""frameworks"": {{

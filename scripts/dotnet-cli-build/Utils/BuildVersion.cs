@@ -47,10 +47,10 @@ namespace Microsoft.DotNet.Cli.Build
         };
 
         //
-        // Locked hosts for consumption in CLI.
+        // Locked muxer for consumption in CLI.
         //
-        public string LockedHostVersion => LatestHostVersion;
-        public string LockedHostFxrVersion => LatestHostFxrVersion;
+        public bool IsLocked = true;
+        public string LockedHostFxrVersion => IsLocked ? "1.0.1-rc2-002468-00" : LatestHostFxrVersion;
 
         //
         // -----------------------------------------END-OF-HOST-VERSIONING-------------------------------------
