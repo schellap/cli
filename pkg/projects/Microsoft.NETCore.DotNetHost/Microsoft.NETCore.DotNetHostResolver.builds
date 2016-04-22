@@ -11,11 +11,11 @@
   <ItemGroup>
     <Project Include="Microsoft.NETCore.DotNetHostResolver.pkgproj">
     </Project>
-    <Project Condition="'$(TargetsWindows)' == 'true'" Include="win/Microsoft.NETCore.DotNetHostResolver.pkgproj">
+    <Project Condition="'$(TargetsWindows)' == 'true'" Include="win/Microsoft.NETCore.DotNetHostResolver.pkgproj;win/Microsoft.NETCore.DotNetHostResolver.symbols.pkgproj">
       <OSGroup>Windows_NT</OSGroup>
       <Platform>amd64</Platform>
     </Project>
-    <Project Condition="'$(TargetsWindows)' == 'true'" Include="win/Microsoft.NETCore.DotNetHostResolver.pkgproj">
+    <Project Condition="'$(TargetsWindows)' == 'true'" Include="win/Microsoft.NETCore.DotNetHostResolver.pkgproj;win/Microsoft.NETCore.DotNetHostResolver.symbols.pkgproj">
       <OSGroup>Windows_NT</OSGroup>
       <Platform>x86</Platform>
     </Project>

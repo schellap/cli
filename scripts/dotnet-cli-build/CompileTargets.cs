@@ -78,8 +78,8 @@ namespace Microsoft.DotNet.Cli.Build
         [Target]
         public static BuildTargetResult GenerateStubHostPackages(BuildTargetContext c)
         {
-            string currentRid = GetRuntimeId();
             var buildVersion = c.BuildContext.Get<BuildVersion>("BuildVersion");
+            string currentRid = GetRuntimeId();
             PrepareDummyRuntimeNuGetPackage(DotNetCli.Stage0);
             foreach (var hostPackage in buildVersion.LatestHostPackages)
             {
@@ -105,7 +105,7 @@ namespace Microsoft.DotNet.Cli.Build
             var buildVersion = c.BuildContext.Get<BuildVersion>("BuildVersion");
             var lockedHostVersion = buildVersion.LockedHostVersion;
             var lockedHostFxrVersion = buildVersion.LockedHostFxrVersion;
-            string projectJson = @"{{
+            string projectJson = $@"{{
   ""dependencies"": {{
       ""Microsoft.NETCore.DotNetHost""         : ""{lockedHostVersion}"",
       ""Microsoft.NETCore.DotNetHostResolver"" : ""{lockedHostFxrVersion}""
@@ -121,14 +121,13 @@ namespace Microsoft.DotNet.Cli.Build
             File.WriteAllText(tempPjFile, projectJson);
 
             DotNetCli.Stage0.Restore("--verbosity", "verbose", "--infer-runtimes", 
-                    "--fallbacksource", Dirs.LocalPackageSource)
+                    "--fallbacksource", Dirs.CorehostLocalPackages)
                 .WorkingDirectory(tempPjDirectory)
                 .Execute()
                 .EnsureSuccessful();
-            dotnetCli.Publish("--verbosity", "verbose",
-                    "--output", Dirs.CorehostLocked,
-                    "-r", GetCorehostDefaultRid(),
-                    tempPjDirectory)
+            DotNetCli.Stage0.Publish("--verbosity", "verbose",
+                    "--output", Dirs.CorehostLocked)
+                .WorkingDirectory(tempPjDirectory)
                 .Execute()
                 .EnsureSuccessful();
             return c.Success();
@@ -150,6 +149,7 @@ namespace Microsoft.DotNet.Cli.Build
             // Run the build
             string rid = GetRuntimeId();
             string corehostSrcDir = Path.Combine(c.BuildContext.BuildDirectory, "src", "corehost");
+
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
                 // Why does Windows directly call cmake but Linux/Mac calls "build.sh" in the corehost dir?
@@ -199,7 +199,7 @@ namespace Microsoft.DotNet.Cli.Build
                         "--arch",
                         "x64",
                         "--policyver",
-                        hostPolicyFullVer,
+                        buildVersion.LatestHostPolicyVersion,
                         "--rid",
                         rid);
 
@@ -214,11 +214,9 @@ namespace Microsoft.DotNet.Cli.Build
         [Target(nameof(CompileTargets.GenerateStubHostPackages))]
         public static BuildTargetResult PackagePkgProjects(BuildTargetContext c)
         {
-            var buildVersion = c.BuildContext.Get<BuildVersion>("BuildVersion");
-            var versionTag = buildVersion.ReleaseSuffix;
-            var buildMajor = buildVersion.CommitCountString;
             var arch = IsWinx86 ? "x86" : "x64";
 
+            var buildVersion = c.BuildContext.Get<BuildVersion>("BuildVersion");
             var version = buildVersion.NuGetVersion;
             var content = $@"{c.BuildContext["CommitHash"]}{Environment.NewLine}{version}{Environment.NewLine}";
             var pkgDir = Path.Combine(c.BuildContext.BuildDirectory, "pkg");
@@ -230,11 +228,11 @@ namespace Microsoft.DotNet.Cli.Build
                     // Workaround to arg escaping adding backslashes for arguments to .cmd scripts.
                     .Environment("__WorkaroundCliCoreHostBuildArch", arch)
                     .Environment("__WorkaroundCliCoreHostBinDir", Dirs.CorehostLatest)
-                    .Environment("__WorkaroundCliCoreHostPolicyVer", buildVersion.LatestHostPolicyVersion)
-                    .Environment("__WorkaroundCliCoreHostFxrVer", buildVersion.LatestHostFxrVersion)
-                    .Environment("__WorkaroundCliCoreHostVer", buildVersion.LatestHostVersion)
-                    .Environment("__WorkaroundCliCoreHostBuildMajor", buildMajor)
-                    .Environment("__WorkaroundCliCoreHostVersionTag", versionTag)
+                    .Environment("__WorkaroundCliCoreHostPolicyVer", buildVersion.LatestHostPolicyVersionNoSuffix)
+                    .Environment("__WorkaroundCliCoreHostFxrVer", buildVersion.LatestHostFxrVersionNoSuffix)
+                    .Environment("__WorkaroundCliCoreHostVer", buildVersion.LatestHostVersionNoSuffix)
+                    .Environment("__WorkaroundCliCoreHostBuildMajor", buildVersion.LatestHostBuildMajor)
+                    .Environment("__WorkaroundCliCoreHostVersionTag", buildVersion.LatestHostPrerelease)
                     .ForwardStdOut()
                     .ForwardStdErr()
                     .Execute()
@@ -248,28 +246,29 @@ namespace Microsoft.DotNet.Cli.Build
                     "--hostbindir",
                     Dirs.CorehostLatest,
                     "--policyver",
-                    buildVersion.LatestHostPolicyVersion,
+                    buildVersion.LatestHostPolicyVersionNoSuffix,
                     "--fxrver",
-                    buildVersion.LatestHostFxrVersion,
+                    buildVersion.LatestHostFxrVersionNoSuffix,
                     "--hostver",
-                    buildVersion.LatestHostVersion,
+                    buildVersion.LatestHostVersionNoSuffix,
                     "--build",
-                    buildMajor,
+                    buildVersion.LatestHostBuildMajor,
                     "--vertag",
-                    versionTag);
+                    buildVersion.LatestHostPrerelease);
             }
-            int runtimeCount = 0;
             foreach (var file in Directory.GetFiles(Path.Combine(pkgDir, "bin", "packages"), "*.nupkg"))
             {
                 var fileName = Path.GetFileName(file);
                 File.Copy(file, Path.Combine(Dirs.CorehostLocalPackages, fileName), true);
-                runtimeCount += (fileName.StartsWith("runtime.") ? 1 : 0);
 
                 Console.WriteLine($"Copying package {fileName} to artifacts directory {Dirs.CorehostLocalPackages}.");
             }
-            if (runtimeCount < 3)
+            foreach (var item in buildVersion.LatestHostPackages)
             {
-                throw new BuildFailureException("Not all corehost nupkgs were successfully created");
+                if (Directory.GetFiles(Dirs.CorehostLocalPackages, $"runtime.*.{item.Key}.{item.Value}.nupkg").Length == 0)
+                {
+                    throw new BuildFailureException($"Nupkg for {item.Key}.{item.Value} was not created.");
+                }
             }
             return c.Success();
         }
@@ -473,7 +472,7 @@ namespace Microsoft.DotNet.Cli.Build
                 "--verbosity", "verbose", 
                 "--disable-parallel", 
                 "--infer-runtimes", 
-                "--fallbacksource", Dirs.LocalPackageSource)
+                "--fallbacksource", Dirs.CorehostLocalPackages)
                 .WorkingDirectory(SharedFrameworkSourceRoot)
                 .Execute()
                 .EnsureSuccessful();
