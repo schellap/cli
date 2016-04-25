@@ -343,6 +343,12 @@ int fx_muxer_t::read_config_and_execute(
     pal::string_t runtime_config = get_last_known_arg(opts, opts_runtime_config, _X(""));
     std::vector<pal::string_t> probe_paths = opts.count(opts_probe_path) ? opts.find(opts_probe_path)->second : std::vector<pal::string_t>();
 
+    if (!deps_file.empty() && (!pal::realpath(&deps_file) || !pal::file_exists(deps_file))
+    {
+        trace::error(_X("Deps file [%s] specified but doesn't exist"), deps_file.c_str());
+        return StatusCode::InvalidArgFailure;
+    }
+
     pal::string_t app_or_deps = deps_file.empty() ? app_candidate : deps_file;
     pal::string_t config_file, dev_config_file;
 
@@ -367,11 +373,6 @@ int fx_muxer_t::read_config_and_execute(
     {
         trace::error(_X("Invalid runtimeconfig.json [%s] [%s]"), config.get_path().c_str(), config.get_dev_path().c_str());
         return StatusCode::InvalidConfigFile;
-    }
-    if (!deps_file.empty() && !pal::file_exists(deps_file))
-    {
-        trace::error(_X("Deps file [%s] specified but doesn't exist"), deps_file.c_str());
-        return StatusCode::InvalidArgFailure;
     }
 
     if (config.get_portable())
