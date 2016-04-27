@@ -134,7 +134,7 @@ bool deps_json_t::perform_rid_fallback(rid_specific_assets_t* portable_assets, c
         {
             if (rid_fallback_graph.count(host_rid) == 0)
             {
-                trace::warning(_X("Did not find fallback rids for package %s for the host rid %s"), package.first.c_str(), host_rid.c_str());
+                trace::warning(_X("The targeted framework does not support the runtime %s. Some native libraries may fail to load on this platform."), package.first.c_str(), host_rid.c_str());
             }
             else
             {

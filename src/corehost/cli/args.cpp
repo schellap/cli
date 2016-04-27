@@ -28,7 +28,7 @@ bool parse_arguments(
     // Get the full name of the application
     if (!pal::get_own_executable_path(&args.own_path) || !pal::realpath(&args.own_path))
     {
-        trace::error(_X("Failed to obtain full path to the executable using [%s]"), args.own_path.c_str());
+        trace::error(_X("Failed to resolve full path of the current executable [%s]"), args.own_path.c_str());
         return false;
     }
 
