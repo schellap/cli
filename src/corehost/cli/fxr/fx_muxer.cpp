@@ -451,7 +451,7 @@ int fx_muxer_t::read_config_and_execute(
             }
             if (!found)
             {
-                trace::error(_X("Expected hostpolicy lib either not found in deps.json [%s] or not found in %d probe paths: "), deps_file.c_str(), probe_realpaths.size());
+                trace::error(_X("Could not find required library %s in the dependencies manifest [%s] or in %d probing paths: "), LIBHOSTPOLICY_NAME, deps_file.c_str(), probe_realpaths.size());
                 for (const auto& path : probe_realpaths)
                 {
                     trace::error(_X("  %s"), path.c_str());

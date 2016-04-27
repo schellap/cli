@@ -134,7 +134,7 @@ bool deps_json_t::perform_rid_fallback(rid_specific_assets_t* portable_assets, c
         {
             if (rid_fallback_graph.count(host_rid) == 0)
             {
-                trace::warning(_X("The targeted framework does not support the runtime %s. Some native libraries may fail to load on this platform."), package.first.c_str(), host_rid.c_str());
+                trace::warning(_X("The targeted framework does not support the runtime '%s'. Some native libraries from [%s] may fail to load on this platform."), host_rid.c_str(), package.first.c_str());
             }
             else
             {
@@ -352,7 +352,7 @@ bool deps_json_t::load(bool portable, const pal::string_t& deps_path, const rid_
     // If file doesn't exist, then assume parsed.
     if (!pal::file_exists(deps_path))
     {
-        trace::verbose(_X("Deps.json file [%s] does not exist"), deps_path.c_str());
+        trace::verbose(_X("Could not locate the dependencies manifest file [%s]. Some libraries may fail to resolve."), deps_path.c_str());
         return true;
     }
 
@@ -360,7 +360,7 @@ bool deps_json_t::load(bool portable, const pal::string_t& deps_path, const rid_
     pal::ifstream_t file(deps_path);
     if (!file.good())
     {
-        trace::error(_X("Could not open file stream on deps.json file [%s]"), deps_path.c_str());
+        trace::error(_X("Could not open dependencies manifest file [%s]"), deps_path.c_str());
         return false;
     }
 

@@ -45,6 +45,21 @@ int load_host_library(
         : StatusCode::CoreHostEntryPointFailure;
 }
 
+void handle_missing_framework_error(const corehost_init_t* init)
+{
+    pal::string_t name = init->fx_name();
+    pal::string_t version = init->fx_version();
+    pal::string_t fx_ver_dirs = get_directory(init->fx_dir());
+    trace::error(_X("This may be because the targeted framework { \"%s\": \"%s\" } was not found."), name.c_str(), version.c_str());
+    trace::error(_X("Check application dependencies and target a framework available in %s:"), fx_ver_dirs.c_str());
+    std::vector<pal::string_t> versions;
+    pal::readdir(fx_ver_dirs, &versions);
+    for (const auto& ver : versions)
+    {
+        trace::error(_X("  %s"), ver.c_str());
+    }
+}
+
 int execute_app(
     const pal::string_t& impl_dll_dir,
     corehost_init_t* init,
@@ -63,10 +78,8 @@ int execute_app(
         trace::error(_X("Expected to load %s from [%s]"), LIBHOSTPOLICY_NAME, impl_dll_dir.c_str());
         if (init->fx_dir() == impl_dll_dir)
         {
-            pal::string_t name = init->fx_name();
-            pal::string_t version = init->fx_version();
-            trace::error(_X("This may be because the targeted framework [\"%s\": \"%s\"] was not found."),
-                name.c_str(), version.c_str());
+            trace::error(_X(""));
+            handle_missing_framework_error(init);
         }
         else
         {

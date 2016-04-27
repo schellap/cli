@@ -30,7 +30,7 @@ int run(const arguments_t& args)
     pal::string_t clr_path = resolver.resolve_coreclr_dir();
     if (clr_path.empty() || !pal::realpath(&clr_path))
     {
-        trace::error(_X("Could not resolve coreclr path, turn on logging (set or export COREHOST_TRACE=1) to look for 'CoreCLR' probed paths."));
+        trace::error(_X("Could not resolve CoreCLR path. For more details, enable tracing by setting COREHOST_TRACE environment variable to 1"));;
         return StatusCode::CoreClrResolveFailure;
     }
     else
