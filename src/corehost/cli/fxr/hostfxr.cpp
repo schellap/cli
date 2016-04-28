@@ -50,13 +50,25 @@ void handle_missing_framework_error(const corehost_init_t* init)
     pal::string_t name = init->fx_name();
     pal::string_t version = init->fx_version();
     pal::string_t fx_ver_dirs = get_directory(init->fx_dir());
-    trace::error(_X("This may be because the targeted framework { \"%s\": \"%s\" } was not found."), name.c_str(), version.c_str());
-    trace::error(_X("Check application dependencies and target a framework available in %s:"), fx_ver_dirs.c_str());
     std::vector<pal::string_t> versions;
     pal::readdir(fx_ver_dirs, &versions);
+    bool header = true;
+
+    trace::error(_X("The targeted framework { \"%s\": \"%s\" } was not found."), name.c_str(), version.c_str());
+    trace::error(_X("  - Check application dependencies and target a framework version installed at:"));
+    trace::error(_X("      %s"), fx_ver_dirs.c_str());
     for (const auto& ver : versions)
     {
-        trace::error(_X("  %s"), ver.c_str());
+        fx_ver_t parsed(-1, -1, -1);
+        if (fx_ver_t::parse(ver, &parsed, false))
+        {
+            if (header)
+            {
+                trace::error(_X("  - The following versions are installed:"));
+                header = false;
+            }
+            trace::error(_X("      %s"), ver.c_str());
+        }
     }
 }
 
@@ -75,15 +87,14 @@ int execute_app(
 
     if (code != StatusCode::Success)
     {
-        trace::error(_X("Expected to load %s from [%s]"), LIBHOSTPOLICY_NAME, impl_dll_dir.c_str());
         if (init->fx_dir() == impl_dll_dir)
         {
-            trace::error(_X(""));
             handle_missing_framework_error(init);
         }
         else
         {
-            trace::error(_X("This may be because of an invalid .NET Core FX configuration in the folder."));
+            trace::error(_X("Expected to load %s from [%s]"), LIBHOSTPOLICY_NAME, impl_dll_dir.c_str());
+            trace::error(_X("  - This may be because of an invalid .NET Core FX configuration in the folder."));
         }
         return code;
     }
