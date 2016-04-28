@@ -21,14 +21,14 @@ pal::string_t resolve_impl_version_from_deps(const pal::string_t& deps_json)
     pal::string_t retval;
     if (!pal::file_exists(deps_json))
     {
-        trace::verbose(_X("[%s] does not exist"), deps_json.c_str());
+        trace::verbose(_X("Dependency manifest [%s] does not exist"), deps_json.c_str());
         return retval;
     }
 
     pal::ifstream_t file(deps_json);
     if (!file.good())
     {
-        trace::verbose(_X("[%s] could not be opened"), deps_json.c_str());
+        trace::verbose(_X("Dependency manifest [%s] could not be opened"), deps_json.c_str());
         return retval;
     }
 
@@ -59,7 +59,7 @@ pal::string_t resolve_impl_version_from_deps(const pal::string_t& deps_json)
         (void)pal::utf8_palstring(je.what(), &jes);
         trace::error(_X("A JSON parsing exception occurred in [%s]: %s"), deps_json.c_str(), jes.c_str());
     }
-    trace::verbose(_X("%s version is [%s] in deps json file [%s]"), retval.c_str(), deps_json.c_str());
+    trace::verbose(_X("Resolved version %s from dependency manifest file [%s]"), retval.c_str(), deps_json.c_str());
     return retval;
 }
 
@@ -80,10 +80,13 @@ bool to_hostpolicy_package_path(const pal::string_t& dir, const pal::string_t& v
 
     if (!pal::file_exists(path))
     {
+        trace::verbose(_X("Did not find %s in path %s"), LIBHOSTPOLICY_NAME, path.c_str());
         return false;
     }
 
     *candidate = path;
+
+    trace::verbose(_X("Found %s in path %s"), LIBHOSTPOLICY_NAME, path.c_str());
     return true;
 }
 
@@ -102,10 +105,10 @@ bool hostpolicy_exists_in_svc(const pal::string_t& version, pal::string_t* resol
     if (to_hostpolicy_package_path(svc_dir, version, &path))
     {
         resolved_dir->assign(path);
-        trace::verbose(_X("[%s] exists in servicing [%s]"), LIBHOSTPOLICY_NAME, path.c_str());
+        trace::verbose(_X("Found [%s] in servicing [%s]"), LIBHOSTPOLICY_NAME, path.c_str());
         return true;
     }
-    trace::verbose(_X("[%s] doesn't exist in servicing [%s]"), LIBHOSTPOLICY_NAME, path.c_str());
+    trace::verbose(_X("Did not find [%s] in servicing [%s]"), LIBHOSTPOLICY_NAME, path.c_str());
     return false;
 }
 
