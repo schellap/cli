@@ -139,7 +139,7 @@ bool fx_muxer_t::resolve_impl_dir(host_mode_t mode,
         if (app_deps_file.empty())
         {
             pal::string_t app_name = get_filename(app_candidate);
-            pal::string_t app_deps_file = get_directory(app_candidate);
+            app_deps_file = get_directory(app_candidate);
             app_deps_file.push_back(DIR_SEPARATOR);
             app_deps_file.append(app_name, 0, app_name.find_last_of(_X(".")));
             app_deps_file.append(_X(".deps.json"));
