@@ -23,7 +23,7 @@ namespace Microsoft.DotNet.Tools.Build
         private readonly DotNetCommandFactory _commandFactory;
         private readonly IncrementalManager _incrementalManager;
 
-        public DotNetProjectBuilder(BuildCommandApp args)
+        public DotNetProjectBuilder(BuildCommandApp args): base(args.ShouldSkipDependencies)
         {
             _args = args;
 
@@ -138,7 +138,10 @@ namespace Microsoft.DotNet.Tools.Build
                 var success = managedCompiler.Compile(projectNode.ProjectContext, _args);
                 if (projectNode.IsRoot)
                 {
-                    MakeRunnable(projectNode);
+                    if (success)
+                    {
+                        MakeRunnable(projectNode);
+                    }
                     PrintSummary(projectNode, success);
                 }
 
