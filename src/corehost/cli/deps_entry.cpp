@@ -62,6 +62,14 @@ bool deps_entry_t::to_path(const pal::string_t& base, bool look_in_base, pal::st
 //
 bool deps_entry_t::to_dir_path(const pal::string_t& base, pal::string_t* str) const
 {
+    if (asset_type == asset_types::resources)
+    {
+        pal::string_t ietf_dir = get_directory(relative_path);
+        pal::string_t ietf = get_filename(ietf_dir);
+        pal::string_t base_ietf_dir = base;
+        append_path(&base_ietf_dir, ietf.c_str());
+        return to_path(base_ietf_dir, true, str);
+    }
     return to_path(base, true, str);
 }
 // -----------------------------------------------------------------------------
