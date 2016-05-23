@@ -21,6 +21,28 @@ namespace Microsoft.DotNet.Tools.Publish.Tests
             publishDir.Should().NotHaveFile("StandaloneApp.runtimeconfig.dev.json");
         }
 
+        [Fact]
+        public void StandaloneAppWithResourceDepsRunsCorrectly()
+        {
+            TestInstance instance =
+                TestAssetsManager
+                    .CreateTestInstance("TestStandaloneAppWithResourceDeps")
+                    .WithLockFiles()
+                    .WithBuildArtifacts();
+
+            var testRoot = _getProjectJson(instance.TestRoot, "TestStandaloneAppWithResourceDeps");
+            var publishCommand = new PublishCommand(testRoot, output: testRoot);
+            publishCommand.Execute().Should().Pass();
+
+            var publishedDir = publishCommand.GetOutputDirectory();
+            var extension = publishCommand.GetExecutableExtension();
+            var outputExe = "TestStandaloneAppWithResourceDeps" + extension;
+            publishedDir.Should().HaveFiles(new[] { "TestStandaloneAppWithResourceDeps.dll", outputExe });
+
+            var command = new TestCommand(Path.Combine(publishedDir.FullName, outputExe));
+            command.Execute("").Should().ExitWith(0);
+        }
+        
         private DirectoryInfo Publish(TestInstance testInstance)
         {
             var publishCommand = new PublishCommand(Path.Combine(testInstance.TestRoot, "StandaloneApp"));
